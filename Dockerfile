@@ -11,28 +11,25 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
-# Tell Playwright to use the system Chromium (no separate download needed)
+# Tell Playwright to use the system Chromium
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV CHROMIUM_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Install dependencies first (Docker layer cache)
+# Copy package.json and install ALL deps (including devDeps needed for TypeScript build)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install
 
-# Copy source
+# Copy source and build TypeScript
 COPY . .
-
-# Build TypeScript
 RUN npm run build
 
 # Railway sets PORT automatically; default 3000
 ENV DASHBOARD_PORT=3000
 EXPOSE 3000
 
-# Create data directory (Railway mounts persistent volume here)
 RUN mkdir -p /app/data
 
 CMD ["node", "dist/server.js"]
