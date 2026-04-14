@@ -1,0 +1,40 @@
+{
+  "name": "wp-agent",
+  "version": "1.0.0",
+  "description": "Agentic WordPress maintenance system powered by Claude",
+  "main": "dist/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "server": "ts-node src/server.ts",
+    "start": "node dist/cli.js",
+    "install:browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axios": "^1.7.0",
+    "better-sqlite3": "^9.4.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.18.0",
+    "inquirer": "^8.2.6",
+    "node-ssh": "^13.2.0",
+    "playwright": "^1.44.0",
+    "simple-git": "^3.24.0",
+    "socket.io": "^4.7.0",
+    "uuid": "^10.0.0",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.0",
+    "@types/inquirer": "^8.2.10",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0"
+  }
+}

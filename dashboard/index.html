@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WP Agent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--bg2:#161a24;--bg3:#1e2333;--bg4:#252b3b;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8eaf0;--muted:#8892a4;--muted2:#5a6478;
+  --purple:#9b6dff;--purple2:#7c4fe0;
+  --teal:#2dd4bf;--green:#4ade80;--amber:#fbbf24;--red:#f87171;--blue:#60a5fa;
+  --r:14px;--ri:24px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6}
+
+/* Layout */
+.layout{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:256px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-head{padding:16px 14px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo{width:30px;height:30px;background:linear-gradient(135deg,var(--purple),var(--teal));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.logo-t{font-weight:600;font-size:14px}
+.logo-s{font-size:11px;color:var(--muted)}
+.new-btn{margin:10px 10px 4px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .15s;width:calc(100% - 20px)}
+.new-btn:hover{background:var(--bg4)}
+.sb-sec{padding:10px 14px 4px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+.sb-item{padding:7px 12px;margin:1px 8px;border-radius:7px;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .12s,color .12s}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-foot{margin-top:auto;padding:10px;border-top:1px solid var(--border)}
+.site-pill{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:9px}
+.s-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);flex-shrink:0;transition:background .3s}
+.s-dot.on{background:var(--green);box-shadow:0 0 6px rgba(74,222,128,.4)}
+.s-nm{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Chat */
+.chat{flex:1;display:flex;flex-direction:column;min-width:0}
+.chat-hd{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;background:var(--bg)}
+.chat-hd-t{font-size:15px;font-weight:500}
+.chat-hd-s{font-size:12px;color:var(--muted);margin-left:auto}
+
+/* Messages */
+.msgs{flex:1;overflow-y:auto;padding:20px 0 4px;display:flex;flex-direction:column;gap:1px}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:2px}
+
+.row{display:flex;padding:5px 22px;gap:12px}
+.row.u{flex-direction:row-reverse}
+.av{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:3px}
+.av.a{background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff}
+.av.u{background:var(--bg3);border:1px solid var(--border2);color:var(--muted)}
+.mbody{max-width:660px;min-width:0}
+.row.u .mbody{align-items:flex-end;display:flex;flex-direction:column}
+
+.bub{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);border-top-left-radius:3px;padding:11px 15px;font-size:14px;line-height:1.75;word-break:break-word}
+.row.u .bub{background:var(--bg3);border-top-left-radius:var(--r);border-top-right-radius:3px}
+.bub.ok{border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.03)}
+.bub.err{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.03)}
+.bub strong{font-weight:600}
+.bub code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:12.5px}
+.bub pre{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:7px 0;overflow-x:auto}
+.bub pre code{background:none;padding:0}
+.bub ul{margin:4px 0 4px 18px}
+.bub li{margin:2px 0}
+.bub a{color:var(--blue)}
+.bub h3{font-size:14px;font-weight:600;margin:8px 0 4px}
+.bub hr{border:none;border-top:1px solid var(--border);margin:8px 0}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.chip{background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:18px;padding:4px 13px;font-size:13px;cursor:pointer;transition:background .12s,border-color .12s;white-space:nowrap}
+.chip:hover{background:var(--bg4);border-color:rgba(155,109,255,.5)}
+
+/* Approval */
+.appr{margin-top:10px;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.05);border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:9px}
+.appr-lbl{font-size:11px;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.appr-act{font-size:14px;font-weight:500}
+.appr-det{font-size:11.5px;color:var(--muted);font-family:monospace;background:rgba(0,0,0,.2);border-radius:6px;padding:7px;max-height:80px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.appr-btns{display:flex;gap:7px}
+.ok-btn{flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.35);color:var(--green);border-radius:7px;padding:6px;font-size:13px;cursor:pointer;transition:background .12s}
+.no-btn{flex:1;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:7px;padding:6px;font-size:13px;cursor:pointer;transition:background .12s}
+.ok-btn:hover{background:rgba(74,222,128,.2)}
+.no-btn:hover{background:rgba(248,113,113,.18)}
+.appr-done{font-size:12px;color:var(--muted);font-style:italic}
+
+/* Log */
+.alog{margin-top:7px;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:8px;padding:7px 10px;max-height:150px;overflow-y:auto}
+.ll{font-family:monospace;font-size:11.5px;padding:1px 0}
+.ll.info{color:#7dd3fc}.ll.success{color:var(--green)}.ll.warn{color:var(--amber)}.ll.error{color:var(--red)}.ll.debug{color:var(--muted2)}
+.lag{color:var(--muted2);margin-right:4px}
+
+/* Typing */
+.typ{display:inline-flex;gap:4px;align-items:center}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);animation:bop .9s infinite ease-in-out}
+.dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+@keyframes bop{0%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+/* Cursor */
+.cur{display:inline-block;width:2px;height:.9em;background:var(--purple);border-radius:1px;margin-left:1px;vertical-align:middle;animation:bl .8s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Input */
+.inp-area{padding:14px 22px 18px;background:var(--bg)}
+.inp-wrap{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--ri);display:flex;align-items:flex-end;gap:8px;padding:9px 12px 9px 16px;transition:border-color .2s;max-width:720px;margin:0 auto}
+.inp-wrap:focus-within{border-color:rgba(155,109,255,.45)}
+#inp{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:14.5px;font-family:inherit;line-height:1.5;resize:none;max-height:140px;min-height:22px;padding:2px 0}
+#inp::placeholder{color:var(--muted2)}
+.snd{width:32px;height:32px;border-radius:50%;background:var(--purple);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s,opacity .12s;color:#fff;font-size:14px}
+.snd:hover{background:var(--purple2)}
+.snd:disabled{opacity:.3;cursor:not-allowed}
+
+/* Link pill */
+.lp{display:inline-flex;align-items:center;gap:4px;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.22);color:var(--blue);border-radius:18px;padding:3px 10px;font-size:12px;text-decoration:none;margin:2px 2px 0 0}
+.lp:hover{background:rgba(96,165,250,.16)}
+
+/* Progress */
+.prog{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);padding:3px 0}
+.pd{width:5px;height:5px;border-radius:50%;background:var(--amber);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* Top bar */
+.tbar{height:2px;background:linear-gradient(90deg,var(--purple),var(--teal));position:fixed;top:0;left:0;right:0;z-index:100;transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.tbar.go{transform:scaleX(.65)}
+.tbar.done{transform:scaleX(1);transition:transform .15s,opacity .5s .2s;opacity:0}
+
+@media(max-width:600px){.sidebar{display:none}.row{padding:5px 12px}.inp-area{padding:10px 12px 14px}}
+</style>
+</head>
+<body>
+<div class="tbar" id="tbar"></div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div class="logo">⚡</div>
+      <div><div class="logo-t">WP Agent</div><div class="logo-s">WordPress AI</div></div>
+    </div>
+
+    <button class="new-btn" onclick="newChat()">✏ New conversation</button>
+
+    <div class="sb-sec">Quick actions</div>
+    <div class="sb-item" onclick="sq('Update all plugins and themes safely')">⬆ Update everything</div>
+    <div class="sb-item" onclick="sq('Run a full site health report')">📋 Health report</div>
+    <div class="sb-item" onclick="sq('Check error logs and fix any issues')">🐛 Fix errors</div>
+    <div class="sb-item" onclick="sq('Test the website as a real user and report problems')">🧪 Test site</div>
+    <div class="sb-item" onclick="sq('Run a full performance audit and optimise what you can')">⚡ Performance</div>
+    <div class="sb-item" onclick="sq('Set up a GitHub backup for my WordPress site')">🐙 Setup GitHub backup</div>
+
+    <div class="sb-foot">
+      <div class="site-pill">
+        <div class="s-dot" id="sdot"></div>
+        <div style="min-width:0">
+          <div class="s-nm" id="snm">Not connected</div>
+          <div class="s-url" id="surl">Setup required</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="chat">
+    <div class="chat-hd">
+      <div class="chat-hd-t" id="hdt">WP Agent</div>
+      <div class="chat-hd-s" id="hds">WordPress maintenance AI</div>
+    </div>
+
+    <div class="msgs" id="msgs"></div>
+
+    <div class="inp-area">
+      <div class="inp-wrap">
+        <textarea id="inp" placeholder="Ask me anything about your WordPress site…" rows="1"
+          onkeydown="hk(event)" oninput="resize(this)"></textarea>
+        <button class="snd" id="snd" onclick="send()" disabled>↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+const msgsEl = document.getElementById('msgs');
+const inp = document.getElementById('inp');
+const sndBtn = document.getElementById('snd');
+
+let busy = false;
+let streamEl = null;
+let logBox = null;
+
+// ── Socket ────────────────────────────────────────────────
+
+socket.on('connect', () => { inp.disabled = false; bar('go'); setTimeout(()=>bar('done'),700); });
+socket.on('disconnect', () => { inp.disabled = true; });
+
+socket.on('chat:setup_status', d => {
+  if (d.complete && d.siteName) setSiteConnected(d.siteName);
+});
+socket.on('chat:setup_complete', d => {
+  if (d.siteName) setSiteConnected(d.siteName);
+});
+
+socket.on('chat:message', msg => {
+  stopTyping(); clearStream();
+  addMsg(msg);
+  logBox = null;
+  busy = false;
+  sndBtn.disabled = !inp.value.trim();
+});
+
+socket.on('chat:typing', on => {
+  busy = on;
+  sndBtn.disabled = on || !inp.value.trim();
+  if (on) showTyping(); else stopTyping();
+});
+
+socket.on('chat:chunk', ({ text }) => {
+  stopTyping();
+  appendChunk(text);
+});
+
+socket.on('chat:agent_log', entry => {
+  if (!logBox) logBox = makeLogBox();
+  addLogLine(logBox, entry);
+});
+
+socket.on('chat:approval_request', req => addApproval(req));
+socket.on('chat:status', ({ text }) => showStatus(text));
+socket.on('chat:error', ({ message }) => addMsg({ id:'e'+Date.now(), role:'assistant', content:'❌ '+message, meta:{type:'err'} }));
+
+// ── Send ───────────────────────────────────────────────────
+
+function send() {
+  const t = inp.value.trim();
+  if (!t || busy) return;
+  addUserBub(t);
+  socket.emit('chat:send', { text: t });
+  inp.value = ''; resize(inp);
+  sndBtn.disabled = true;
+  logBox = null;
+}
+
+function sq(t) { if (busy) return; inp.value = t; send(); }
+
+function hk(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function resize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  sndBtn.disabled = !el.value.trim() || busy;
+}
+
+// ── Render ─────────────────────────────────────────────────
+
+function addMsg(msg) {
+  const row = el('div', 'row ' + (msg.role === 'user' ? 'u' : ''));
+  row.id = 'msg-' + msg.id;
+
+  const av = el('div', 'av ' + (msg.role === 'assistant' ? 'a' : 'u'));
+  av.textContent = msg.role === 'assistant' ? '⚡' : '👤';
+
+  const body = el('div', 'mbody');
+
+  const type = msg.meta?.type || '';
+  const bub = el('div', 'bub' + (type === 'success' ? ' ok' : type === 'err' || type === 'error' ? ' err' : ''));
+  bub.innerHTML = md(msg.content || '');
+  body.appendChild(bub);
+
+  // Links
+  (msg.meta?.links || []).forEach(l => {
+    const a = el('a', 'lp'); a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = '🔗 ' + l.label;
+    body.appendChild(a);
+  });
+
+  // Chips
+  const chips = msg.meta?.chips || [];
+  if (chips.length && msg.role === 'assistant') {
+    const cr = el('div', 'chips');
+    chips.forEach(c => {
+      const b = el('button', 'chip'); b.textContent = c;
+      b.onclick = () => { cr.remove(); sq(c); };
+      cr.appendChild(b);
+    });
+    body.appendChild(cr);
+  }
+
+  row.appendChild(av); row.appendChild(body);
+  msgsEl.appendChild(row);
+  scrollEnd();
+}
+
+function addUserBub(t) {
+  addMsg({ id: 'u' + Date.now(), role: 'user', content: t, meta: {} });
+}
+
+// ── Streaming ───────────────────────────────────────────────
+
+function appendChunk(text) {
+  if (!streamEl) {
+    const row = el('div', 'row');
+    row.id = 'srow';
+    const av = el('div', 'av a'); av.textContent = '⚡';
+    const body = el('div', 'mbody');
+    const bub = el('div', 'bub'); bub.id = 'sbub';
+    body.appendChild(bub); row.appendChild(av); row.appendChild(body);
+    msgsEl.appendChild(row);
+    streamEl = bub;
+  }
+  streamEl._raw = (streamEl._raw || '') + text;
+  streamEl.innerHTML = md(streamEl._raw) + '<span class="cur"></span>';
+  scrollEnd();
+}
+
+function clearStream() {
+  const r = document.getElementById('srow');
+  if (r) r.remove();
+  streamEl = null;
+}
+
+// ── Typing ──────────────────────────────────────────────────
+
+function showTyping() {
+  if (document.getElementById('trow')) return;
+  const row = el('div', 'row'); row.id = 'trow';
+  const av = el('div', 'av a'); av.textContent = '⚡';
+  const body = el('div', 'mbody');
+  const bub = el('div', 'bub');
+  bub.innerHTML = '<div class="typ"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  body.appendChild(bub); row.appendChild(av); row.appendChild(body);
+  msgsEl.appendChild(row); scrollEnd();
+}
+function stopTyping() { const e = document.getElementById('trow'); if (e) e.remove(); }
+
+// ── Status ──────────────────────────────────────────────────
+
+function showStatus(text) {
+  let e = document.getElementById('st');
+  if (!e) {
+    e = el('div'); e.id = 'st';
+    e.style.cssText = 'text-align:center;padding:5px 20px;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px';
+    msgsEl.appendChild(e);
+  }
+  e.innerHTML = '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--amber);animation:pulse 1s infinite"></span>' + x(text);
+  scrollEnd();
+  setTimeout(() => { if (e.parentNode) e.remove(); }, 8000);
+}
+
+// ── Logs ────────────────────────────────────────────────────
+
+function makeLogBox() {
+  const row = el('div', 'row'); 
+  const av = el('div', 'av a'); av.textContent = '⚡';
+  const body = el('div', 'mbody'); body.style.cssText = 'width:100%;max-width:660px';
+  const h = el('div', 'prog');
+  h.innerHTML = '<span class="pd"></span><span>Working…</span>';
+  const log = el('div', 'alog');
+  body.appendChild(h); body.appendChild(log);
+  row.appendChild(av); row.appendChild(body);
+  msgsEl.appendChild(row);
+  scrollEnd();
+  return log;
+}
+
+function addLogLine(box, entry) {
+  const d = el('div', 'll ' + entry.level);
+  const ag = entry.agent ? `<span class="lag">[${entry.agent.toUpperCase()}]</span>` : '';
+  d.innerHTML = ag + x(entry.message);
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  scrollEnd();
+}
+
+// ── Approval ────────────────────────────────────────────────
+
+function addApproval(req) {
+  const row = el('div', 'row');
+  const av = el('div', 'av a'); av.textContent = '⚡';
+  const body = el('div', 'mbody'); body.style.maxWidth = '540px';
+  const bub = el('div', 'bub');
+  bub.innerHTML = `<div style="font-size:13px;margin-bottom:8px">I need your approval to continue:</div>
+    <div class="appr" id="ap-${x(req.id)}">
+      <div class="appr-lbl">⚠ ${x(req.risk?.toUpperCase() || 'HIGH')} RISK</div>
+      <div class="appr-act">${x(req.action)}</div>
+      ${req.details ? `<div class="appr-det">${x(JSON.stringify(req.details,null,2).slice(0,300))}</div>` : ''}
+      <div class="appr-btns">
+        <button class="ok-btn" onclick="resolve('${x(req.id)}',true,this)">✓ Approve</button>
+        <button class="no-btn" onclick="resolve('${x(req.id)}',false,this)">✕ Deny</button>
+      </div>
+    </div>`;
+  body.appendChild(bub); row.appendChild(av); row.appendChild(body);
+  msgsEl.appendChild(row); scrollEnd();
+}
+
+function resolve(id, approved, btn) {
+  socket.emit('chat:approve', { id, approved });
+  const btns = btn?.closest('.appr-btns');
+  if (btns) btns.innerHTML = `<div class="appr-done">${approved ? '✓ Approved' : '✕ Denied'}</div>`;
+}
+
+// ── Site badge ───────────────────────────────────────────────
+
+function setSiteConnected(name) {
+  document.getElementById('sdot').classList.add('on');
+  document.getElementById('snm').textContent = name;
+  document.getElementById('surl').textContent = 'Connected ✓';
+  document.getElementById('hdt').textContent = name;
+}
+
+// ── Markdown (no deps) ───────────────────────────────────────
+
+function md(t) {
+  if (!t) return '';
+  let h = x(t);
+  // fenced code
+  h = h.replace(/```[\w]*\n?([\s\S]*?)```/g, (_,c)=>`<pre><code>${c.trim()}</code></pre>`);
+  // inline code
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // bold
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  // h3
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  // hr
+  h = h.replace(/^---$/gm, '<hr>');
+  // bullets
+  h = h.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m=>`<ul>${m}</ul>`);
+  // link pills already escaped → keep as text
+  h = h.replace(/\[🔗 ([^\]]+)\]/g, '<span style="color:var(--blue)">🔗 $1</span>');
+  // double newline → paragraph break
+  h = h.replace(/\n\n/g, '<br><br>');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function scrollEnd() { requestAnimationFrame(()=>{ msgsEl.scrollTop = msgsEl.scrollHeight; }); }
+
+function bar(state) {
+  const b = document.getElementById('tbar');
+  b.className = 'tbar ' + state;
+  if (state === 'done') setTimeout(()=>b.className='tbar', 900);
+}
+
+function newChat() {
+  msgsEl.innerHTML = '';
+  socket.disconnect();
+  setTimeout(()=>socket.connect(), 100);
+}
+
+inp.addEventListener('input', () => { sndBtn.disabled = !inp.value.trim() || busy; });
+</script>
+</body>
+</html>
