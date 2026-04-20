@@ -236,6 +236,182 @@ export class WpCliTool {
   async gitStatus(): Promise<string> {
     return this.exec(`cd ${this.wpPath} && git status 2>&1`);
   }
+
+  // ─── Menu management ─────────────────────────────────────
+
+  async listMenus(): Promise<string> {
+    return this.wp('menu list --format=json');
+  }
+
+  async createMenu(menuName: string): Promise<string> {
+    return this.wp(`menu create "${menuName}" --porcelain`);
+  }
+
+  async deleteMenu(menuNameOrId: string): Promise<string> {
+    return this.wp(`menu delete "${menuNameOrId}"`);
+  }
+
+  async listMenuItems(menuNameOrId: string): Promise<string> {
+    return this.wp(`menu item list "${menuNameOrId}" --format=json`);
+  }
+
+  async addMenuItemUrl(menuNameOrId: string, url: string, title: string, parent = 0): Promise<string> {
+    return this.wp(`menu item add-custom "${menuNameOrId}" "${title}" "${url}"${parent ? ` --parent-id=${parent}` : ''} --porcelain`);
+  }
+
+  async addMenuItemPost(menuNameOrId: string, postId: number, parent = 0): Promise<string> {
+    return this.wp(`menu item add-post "${menuNameOrId}" ${postId}${parent ? ` --parent-id=${parent}` : ''} --porcelain`);
+  }
+
+  async deleteMenuItem(menuItemId: number): Promise<string> {
+    return this.wp(`menu item delete ${menuItemId}`);
+  }
+
+  async listMenuLocations(): Promise<string> {
+    return this.wp('menu location list --format=json');
+  }
+
+  async assignMenuToLocation(menuName: string, location: string): Promise<string> {
+    return this.wp(`menu location assign "${menuName}" "${location}"`);
+  }
+
+  // ─── Widget management ────────────────────────────────────
+
+  async listWidgets(sidebar?: string): Promise<string> {
+    const cmd = sidebar
+      ? `widget list "${sidebar}" --format=json`
+      : 'sidebar list --format=json';
+    return this.wp(cmd);
+  }
+
+  async addWidget(sidebar: string, name: string, position = 1, optionsJson = '{}'): Promise<string> {
+    return this.wp(`widget add "${name}" "${sidebar}" ${position} --data='${optionsJson}'`);
+  }
+
+  async removeWidget(widgetId: string): Promise<string> {
+    return this.wp(`widget delete "${widgetId}"`);
+  }
+
+  // ─── User management ─────────────────────────────────────
+
+  async listUsers(role?: string, perPage = 50): Promise<string> {
+    const roleFlag = role ? ` --role=${role}` : '';
+    return this.wp(`user list${roleFlag} --number=${perPage} --format=json --fields=ID,user_login,user_email,roles,user_registered`);
+  }
+
+  async deleteUser(userId: number, reassignTo?: number): Promise<string> {
+    const reassignFlag = reassignTo ? ` --reassign=${reassignTo}` : '';
+    return this.wp(`user delete ${userId}${reassignFlag} --yes`);
+  }
+
+  async deleteSpamUsers(userIds: number[]): Promise<string> {
+    if (userIds.length === 0) return 'No users to delete.';
+    return this.wp(`user delete ${userIds.join(' ')} --yes`);
+  }
+
+  async createUser(login: string, email: string, role = 'subscriber', password?: string): Promise<string> {
+    const passFlag = password ? ` --user_pass="${password}"` : '';
+    return this.wp(`user create "${login}" "${email}" --role=${role}${passFlag} --porcelain`);
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<string> {
+    return this.wp(`user update ${userId} --user_pass="${newPassword}"`);
+  }
+
+  // ─── Cron management ─────────────────────────────────────
+
+  async listCronEvents(): Promise<string> {
+    return this.wp('cron event list --format=json');
+  }
+
+  async runCronEvent(hook: string): Promise<string> {
+    return this.wp(`cron event run "${hook}"`);
+  }
+
+  async scheduleCronEvent(hook: string, nextRunTimestamp: number, recurrence: string): Promise<string> {
+    return this.wp(`cron event schedule "${hook}" ${nextRunTimestamp} ${recurrence}`);
+  }
+
+  async deleteCronEvent(hook: string): Promise<string> {
+    return this.wp(`cron event delete "${hook}"`);
+  }
+
+  async runAllOverdueCron(): Promise<string> {
+    return this.wp('cron event run --due-now');
+  }
+
+  // ─── Database backup / restore ────────────────────────────
+
+  async dbExport(filePath?: string): Promise<string> {
+    const defaultPath = `/tmp/wp-backup-${Date.now()}.sql`;
+    const target = filePath || defaultPath;
+    await this.wp(`db export "${target}" --quiet`);
+    return `Database exported to: ${target}`;
+  }
+
+  async dbImport(filePath: string): Promise<string> {
+    return this.wp(`db import "${filePath}"`);
+  }
+
+  async dbSize(): Promise<string> {
+    return this.wp('db size --format=json');
+  }
+
+  async dbCleanup(): Promise<string> {
+    // Remove spam, trash, auto-drafts, and expired transients
+    const steps = [
+      'post delete $(wp post list --post_status=trash --format=ids --allow-root) --force --allow-root 2>/dev/null || true',
+      'post delete $(wp post list --post_status=spam --format=ids --allow-root) --force --allow-root 2>/dev/null || true',
+      'transient delete --expired --allow-root 2>/dev/null || true',
+    ];
+    const results: string[] = [];
+    for (const step of steps) {
+      try {
+        results.push(await this.exec(`wp ${step} --path=${this.wpPath}`));
+      } catch {
+        results.push(`[skipped] ${step}`);
+      }
+    }
+    return results.join('\n');
+  }
+
+  // ─── Cache management ─────────────────────────────────────
+
+  async flushAllCaches(): Promise<string> {
+    const results: string[] = [];
+    // Flush object cache
+    try { results.push('Object cache: ' + await this.wp('cache flush')); } catch { results.push('Object cache: skipped'); }
+    // Flush rewrite rules
+    try { results.push('Rewrite rules: ' + await this.wp('rewrite flush')); } catch { results.push('Rewrite: skipped'); }
+    // W3 Total Cache
+    try { results.push('W3TC: ' + await this.wp('w3-total-cache flush all')); } catch { /* not installed */ }
+    // WP Super Cache
+    try { results.push('WPSC: ' + await this.exec(`wp --path=${this.wpPath} super-cache flush --allow-root 2>/dev/null || true`)); } catch { /* not installed */ }
+    // WP Rocket
+    try { results.push('WP Rocket: ' + await this.wp('rocket clean --confirm')); } catch { /* not installed */ }
+    return results.filter(Boolean).join('\n');
+  }
+
+  // ─── SEO tools ────────────────────────────────────────────
+
+  async getRobotsFile(): Promise<string> {
+    return this.exec(`cat ${this.wpPath}/robots.txt 2>/dev/null || echo "No robots.txt found"`);
+  }
+
+  async writeRobotsFile(content: string): Promise<string> {
+    const escaped = content.replace(/'/g, `'\\''`);
+    await this.exec(`echo '${escaped}' > ${this.wpPath}/robots.txt`);
+    return 'robots.txt updated successfully';
+  }
+
+  async listRedirects(): Promise<string> {
+    // Works with Redirection plugin table
+    return this.wp('db query "SELECT id,url,action_data,hits FROM wp_redirection_items WHERE status=\'enabled\' ORDER BY hits DESC LIMIT 50" --format=json 2>/dev/null || echo "No Redirection plugin found"');
+  }
+
+  async checkPhpSyntax(filePath: string): Promise<string> {
+    return this.exec(`php -l "${filePath}" 2>&1`);
+  }
 }
 
 // ─── Anthropic tool definitions for WP-CLI ───────────────────
@@ -521,6 +697,287 @@ export const wpCliToolDefinitions = [
       required: ['command'],
     },
   },
+
+  // ─── Menu management ─────────────────────────────────────
+  {
+    name: 'wp_list_menus',
+    description: 'List all WordPress navigation menus',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_create_menu',
+    description: 'Create a new navigation menu',
+    input_schema: {
+      type: 'object' as const,
+      properties: { name: { type: 'string', description: 'Menu name' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'wp_delete_menu',
+    description: 'Delete a navigation menu by name or ID',
+    input_schema: {
+      type: 'object' as const,
+      properties: { menu: { type: 'string', description: 'Menu name or ID' } },
+      required: ['menu'],
+    },
+  },
+  {
+    name: 'wp_list_menu_items',
+    description: 'List all items in a navigation menu',
+    input_schema: {
+      type: 'object' as const,
+      properties: { menu: { type: 'string', description: 'Menu name or ID' } },
+      required: ['menu'],
+    },
+  },
+  {
+    name: 'wp_add_menu_item_url',
+    description: 'Add a custom URL link to a navigation menu',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        menu: { type: 'string', description: 'Menu name or ID' },
+        url: { type: 'string', description: 'URL to link to' },
+        title: { type: 'string', description: 'Link label' },
+        parent: { type: 'number', description: 'Parent menu item ID (for dropdown)', default: 0 },
+      },
+      required: ['menu', 'url', 'title'],
+    },
+  },
+  {
+    name: 'wp_add_menu_item_post',
+    description: 'Add a post or page to a navigation menu',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        menu: { type: 'string', description: 'Menu name or ID' },
+        post_id: { type: 'number', description: 'Post or page ID to add' },
+        parent: { type: 'number', description: 'Parent menu item ID (for dropdown)', default: 0 },
+      },
+      required: ['menu', 'post_id'],
+    },
+  },
+  {
+    name: 'wp_delete_menu_item',
+    description: 'Delete a specific item from a navigation menu',
+    input_schema: {
+      type: 'object' as const,
+      properties: { item_id: { type: 'number', description: 'Menu item ID to delete' } },
+      required: ['item_id'],
+    },
+  },
+  {
+    name: 'wp_list_menu_locations',
+    description: 'List all registered menu locations in the active theme',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_assign_menu',
+    description: 'Assign a navigation menu to a theme location (e.g. primary, footer)',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        menu: { type: 'string', description: 'Menu name' },
+        location: { type: 'string', description: 'Theme location slug (e.g. primary, footer)' },
+      },
+      required: ['menu', 'location'],
+    },
+  },
+
+  // ─── Widget management ────────────────────────────────────
+  {
+    name: 'wp_list_widgets',
+    description: 'List all sidebars and their widgets, or widgets in a specific sidebar',
+    input_schema: {
+      type: 'object' as const,
+      properties: { sidebar: { type: 'string', description: 'Sidebar ID (optional, lists all if omitted)' } },
+      required: [],
+    },
+  },
+  {
+    name: 'wp_add_widget',
+    description: 'Add a widget to a sidebar',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sidebar: { type: 'string', description: 'Sidebar ID (e.g. sidebar-1, footer-1)' },
+        widget: { type: 'string', description: 'Widget name (e.g. text, recent-posts, search)' },
+        position: { type: 'number', description: 'Position in sidebar (1 = top)', default: 1 },
+        options: { type: 'string', description: 'JSON string of widget options e.g. {"title":"My Widget"}', default: '{}' },
+      },
+      required: ['sidebar', 'widget'],
+    },
+  },
+  {
+    name: 'wp_remove_widget',
+    description: 'Remove a widget from a sidebar by widget instance ID',
+    input_schema: {
+      type: 'object' as const,
+      properties: { widget_id: { type: 'string', description: 'Widget instance ID (from wp_list_widgets)' } },
+      required: ['widget_id'],
+    },
+  },
+
+  // ─── User management ─────────────────────────────────────
+  {
+    name: 'wp_list_users',
+    description: 'List WordPress users. Filter by role. Returns ID, login, email, role, registration date.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        role: { type: 'string', description: 'Filter by role: administrator, editor, author, contributor, subscriber' },
+        per_page: { type: 'number', default: 50 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'wp_delete_user',
+    description: 'Delete a WordPress user by ID. Optionally reassign their content to another user.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        user_id: { type: 'number' },
+        reassign_to: { type: 'number', description: 'User ID to reassign posts to (recommended)' },
+      },
+      required: ['user_id'],
+    },
+  },
+  {
+    name: 'wp_delete_spam_users',
+    description: 'Bulk delete multiple spam/bot user accounts by their IDs',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        user_ids: { type: 'array', items: { type: 'number' }, description: 'Array of user IDs to delete' },
+      },
+      required: ['user_ids'],
+    },
+  },
+  {
+    name: 'wp_create_user',
+    description: 'Create a new WordPress user account',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        login: { type: 'string', description: 'Username' },
+        email: { type: 'string', description: 'Email address' },
+        role: { type: 'string', description: 'Role: administrator, editor, author, subscriber', default: 'subscriber' },
+        password: { type: 'string', description: 'Password (auto-generated if omitted)' },
+      },
+      required: ['login', 'email'],
+    },
+  },
+  {
+    name: 'wp_update_user_password',
+    description: 'Change a WordPress user\'s password',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        user_id: { type: 'number' },
+        new_password: { type: 'string', description: 'New password for the user' },
+      },
+      required: ['user_id', 'new_password'],
+    },
+  },
+
+  // ─── Cron management ─────────────────────────────────────
+  {
+    name: 'wp_list_cron_events',
+    description: 'List all scheduled WordPress cron events with their next run times',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_run_cron_event',
+    description: 'Manually trigger a specific WordPress cron event by hook name',
+    input_schema: {
+      type: 'object' as const,
+      properties: { hook: { type: 'string', description: 'Cron hook name to run' } },
+      required: ['hook'],
+    },
+  },
+  {
+    name: 'wp_run_overdue_cron',
+    description: 'Run all WordPress cron events that are currently overdue',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_delete_cron_event',
+    description: 'Delete a scheduled cron event by hook name',
+    input_schema: {
+      type: 'object' as const,
+      properties: { hook: { type: 'string', description: 'Cron hook name to delete' } },
+      required: ['hook'],
+    },
+  },
+
+  // ─── Database ─────────────────────────────────────────────
+  {
+    name: 'wp_db_export',
+    description: 'Export the WordPress database to a SQL dump file on the server',
+    input_schema: {
+      type: 'object' as const,
+      properties: { file_path: { type: 'string', description: 'Path to save SQL file (default: /tmp/wp-backup-TIMESTAMP.sql)' } },
+      required: [],
+    },
+  },
+  {
+    name: 'wp_db_import',
+    description: 'Import a SQL dump file into the WordPress database',
+    input_schema: {
+      type: 'object' as const,
+      properties: { file_path: { type: 'string', description: 'Path to the SQL file to import' } },
+      required: ['file_path'],
+    },
+  },
+  {
+    name: 'wp_db_size',
+    description: 'Get the current size of the WordPress database',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_db_cleanup',
+    description: 'Remove WordPress database bloat: trashed posts, spam comments, expired transients',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+
+  // ─── Cache ────────────────────────────────────────────────
+  {
+    name: 'wp_flush_all_caches',
+    description: 'Flush all caches: object cache, rewrite rules, W3 Total Cache, WP Super Cache, WP Rocket',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+
+  // ─── SEO ──────────────────────────────────────────────────
+  {
+    name: 'wp_get_robots',
+    description: 'Read the robots.txt file from the WordPress root',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_write_robots',
+    description: 'Write/update the robots.txt file',
+    input_schema: {
+      type: 'object' as const,
+      properties: { content: { type: 'string', description: 'Full robots.txt content' } },
+      required: ['content'],
+    },
+  },
+  {
+    name: 'wp_list_redirects',
+    description: 'List active 301 redirects from the Redirection plugin',
+    input_schema: { type: 'object' as const, properties: {}, required: [] },
+  },
+  {
+    name: 'wp_check_php_syntax',
+    description: 'Validate PHP syntax of a file before editing (php -l). Always run before writing any PHP file.',
+    input_schema: {
+      type: 'object' as const,
+      properties: { file_path: { type: 'string', description: 'Absolute path to PHP file to validate' } },
+      required: ['file_path'],
+    },
+  },
 ];
 
 // ─── Tool dispatcher ─────────────────────────────────────────
@@ -571,6 +1028,51 @@ export async function dispatchWpCliTool(
     case 'wp_maintenance_enable': return tool.maintenanceEnable();
     case 'wp_maintenance_disable':return tool.maintenanceDisable();
     case 'wp_ssh_exec':           return tool.exec(input.command as string);
+
+    // Menu management
+    case 'wp_list_menus':         return tool.listMenus();
+    case 'wp_create_menu':        return tool.createMenu(input.name as string);
+    case 'wp_delete_menu':        return tool.deleteMenu(input.menu as string);
+    case 'wp_list_menu_items':    return tool.listMenuItems(input.menu as string);
+    case 'wp_add_menu_item_url':  return tool.addMenuItemUrl(input.menu as string, input.url as string, input.title as string, input.parent as number);
+    case 'wp_add_menu_item_post': return tool.addMenuItemPost(input.menu as string, input.post_id as number, input.parent as number);
+    case 'wp_delete_menu_item':   return tool.deleteMenuItem(input.item_id as number);
+    case 'wp_list_menu_locations':return tool.listMenuLocations();
+    case 'wp_assign_menu':        return tool.assignMenuToLocation(input.menu as string, input.location as string);
+
+    // Widget management
+    case 'wp_list_widgets':       return tool.listWidgets(input.sidebar as string | undefined);
+    case 'wp_add_widget':         return tool.addWidget(input.sidebar as string, input.widget as string, input.position as number, input.options as string);
+    case 'wp_remove_widget':      return tool.removeWidget(input.widget_id as string);
+
+    // User management
+    case 'wp_list_users':         return tool.listUsers(input.role as string | undefined, input.per_page as number);
+    case 'wp_delete_user':        return tool.deleteUser(input.user_id as number, input.reassign_to as number | undefined);
+    case 'wp_delete_spam_users':  return tool.deleteSpamUsers(input.user_ids as number[]);
+    case 'wp_create_user':        return tool.createUser(input.login as string, input.email as string, input.role as string, input.password as string | undefined);
+    case 'wp_update_user_password': return tool.updateUserPassword(input.user_id as number, input.new_password as string);
+
+    // Cron management
+    case 'wp_list_cron_events':   return tool.listCronEvents();
+    case 'wp_run_cron_event':     return tool.runCronEvent(input.hook as string);
+    case 'wp_run_overdue_cron':   return tool.runAllOverdueCron();
+    case 'wp_delete_cron_event':  return tool.deleteCronEvent(input.hook as string);
+
+    // Database
+    case 'wp_db_export':          return tool.dbExport(input.file_path as string | undefined);
+    case 'wp_db_import':          return tool.dbImport(input.file_path as string);
+    case 'wp_db_size':            return tool.dbSize();
+    case 'wp_db_cleanup':         return tool.dbCleanup();
+
+    // Cache
+    case 'wp_flush_all_caches':   return tool.flushAllCaches();
+
+    // SEO
+    case 'wp_get_robots':         return tool.getRobotsFile();
+    case 'wp_write_robots':       return tool.writeRobotsFile(input.content as string);
+    case 'wp_list_redirects':     return tool.listRedirects();
+    case 'wp_check_php_syntax':   return tool.checkPhpSyntax(input.file_path as string);
+
     default:
       throw new Error(`Unknown WP-CLI tool: ${name}`);
   }

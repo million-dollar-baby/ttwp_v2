@@ -156,7 +156,49 @@ export interface PerformanceBaseline {
 
 // ─── Agent types ──────────────────────────────────────────────
 
-export type AgentName = 'orchestrator' | 'builder' | 'content' | 'updater' | 'debugger' | 'tester' | 'audit' | 'performance';
+export type AgentName = 'orchestrator' | 'builder' | 'content' | 'updater' | 'debugger' | 'tester' | 'audit' | 'performance' | 'monitor';
+
+// ─── Monitoring ───────────────────────────────────────────────
+
+export type MonitorSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type MonitorCheckType =
+  | 'uptime'
+  | 'ssl'
+  | 'error_spike'
+  | 'cron'
+  | 'malware'
+  | 'spam_users'
+  | 'broken_links'
+  | 'page_speed';
+
+export interface MonitorAlert {
+  id: string;
+  checkType: MonitorCheckType;
+  severity: MonitorSeverity;
+  title: string;
+  detail: string;
+  autoResolved: boolean;
+  triggeredAt: string;
+  resolvedAt?: string;
+  taskId?: string; // ID of remediation task if auto-fixed
+}
+
+export interface MonitorCheckResult {
+  checkType: MonitorCheckType;
+  passed: boolean;
+  severity?: MonitorSeverity;
+  summary: string;
+  detail: Record<string, unknown>;
+  checkedAt: string;
+}
+
+export interface SiteHealthSnapshot {
+  siteId: string;
+  checks: MonitorCheckResult[];
+  alerts: MonitorAlert[];
+  overallStatus: 'healthy' | 'degraded' | 'critical';
+  snapshotAt: string;
+}
 
 export interface AgentResult {
   success: boolean;

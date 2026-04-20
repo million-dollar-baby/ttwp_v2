@@ -13,6 +13,7 @@ import { BuilderAgent, UpdaterAgent, DebuggerAgent, TesterAgent } from './agents
 import { ContentAgent } from './content-agent';
 import { AuditAgent } from './audit-agent';
 import { PerformanceAgent } from './performance-agent';
+import { MonitorAgent } from './monitor-agent';
 import { WpCliTool } from '../tools/wpcli';
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -138,12 +139,13 @@ export class Orchestrator {
 
 You have these specialist agents available:
 - builder: Creates/edits pages, themes, CSS, PHP features, custom code
-- content: Manages posts, pages, media, categories, tags via REST API (no SSH needed)
+- content: Manages posts, pages, media, categories, tags, menus, widgets via REST API (no SSH needed)
 - updater: Updates plugins, themes, WordPress core
 - debugger: Reads error logs, diagnoses and fixes bugs in code
 - tester: Tests the site in a real browser (navigation, forms, links, speed)
 - audit: Comprehensive site health report (security, performance, content, versions)
 - performance: Performance optimisation (Core Web Vitals, DB cleanup, caching, image audit)
+- monitor: Health monitoring — uptime, SSL expiry, malware scan, cron health, error spikes, spam users, broken links
 
 Your job is to create a step-by-step execution plan for the task below.
 
@@ -260,6 +262,12 @@ RULES:
       }
       case 'performance': {
         const agent = new PerformanceAgent(this.config, env);
+        const result = await agent.run(task, contextualInstruction, step.description);
+        await agent.cleanup();
+        return result;
+      }
+      case 'monitor': {
+        const agent = new MonitorAgent(this.config, env);
         const result = await agent.run(task, contextualInstruction, step.description);
         await agent.cleanup();
         return result;

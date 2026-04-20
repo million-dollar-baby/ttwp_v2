@@ -5,6 +5,7 @@
 import { loadSiteConfig, bus } from './config';
 import { Orchestrator } from './agents/orchestrator';
 import { listTasks } from './memory/store';
+import { MonitorTool } from './tools/monitor';
 
 interface ScheduleEntry {
   id: string;
@@ -14,37 +15,111 @@ interface ScheduleEntry {
   enabled: boolean;
   lastRun?: string;
   nextRun?: string;
+  isMonitorCheck?: boolean; // true = run via MonitorTool directly, not Orchestrator
 }
 
 // Default maintenance schedule
 const DEFAULT_SCHEDULE: ScheduleEntry[] = [
+  // ─── Monitoring checks ────────────────────────────────────
+  {
+    id: 'hourly-uptime',
+    name: 'Uptime check',
+    cronExpression: 'hourly',
+    task: 'Check if the site is up and responding. If the site is down or returning errors, immediately alert and attempt to diagnose the cause by checking error logs.',
+    enabled: true,
+  },
+  {
+    id: 'daily-ssl',
+    name: 'SSL certificate check',
+    cronExpression: 'daily',
+    task: 'Check the SSL certificate for the site. Run monitor_check_ssl. If expiring within 30 days, alert with MEDIUM severity. If expiring within 7 days or already expired, alert CRITICAL.',
+    enabled: true,
+  },
+  {
+    id: 'daily-malware',
+    name: 'Malware scan',
+    cronExpression: 'daily',
+    task: 'Run a malware scan using monitor_check_malware. Check for suspicious PHP files and eval/base64 injection patterns. If malware is detected, alert CRITICAL and report affected files.',
+    enabled: true,
+  },
+  {
+    id: 'daily-cron-health',
+    name: 'WordPress cron health',
+    cronExpression: 'daily',
+    task: 'Check WordPress cron job health using monitor_check_cron. If there are overdue events, run wp_run_overdue_cron to process them and report results.',
+    enabled: true,
+  },
+  {
+    id: 'daily-error-spike',
+    name: 'PHP error spike check',
+    cronExpression: 'daily',
+    task: 'Check PHP and WordPress error logs for error spikes using monitor_check_error_spike. If a spike is detected (10+ errors), read the top errors, identify the source plugin or theme, and report with recommendations.',
+    enabled: true,
+  },
+
+  // ─── Maintenance tasks ────────────────────────────────────
   {
     id: 'daily-scan',
     name: 'Daily scan',
     cronExpression: 'daily',
     task: 'Scan the WordPress site: check for available plugin/theme/core updates, read error logs and report any new errors found since yesterday. Store findings in memory.',
-    enabled: false,
+    enabled: true,
+  },
+  {
+    id: 'daily-cache-flush',
+    name: 'Daily cache flush',
+    cronExpression: 'daily',
+    task: 'Flush all WordPress caches to ensure fresh content delivery. Use wp_flush_all_caches which covers object cache, rewrite rules, and popular cache plugins (W3TC, WP Super Cache, WP Rocket).',
+    enabled: true,
   },
   {
     id: 'weekly-update',
     name: 'Weekly updates',
     cronExpression: 'weekly',
     task: 'Safely update all WordPress plugins and themes that have updates available. Enable maintenance mode first, update one by one, test after each update, disable maintenance mode when done.',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'weekly-test',
     name: 'Weekly site test',
     cronExpression: 'weekly',
     task: 'Run a comprehensive browser-based site test: check homepage, contact form, key pages, measure load times, check for broken links, check admin for notices. Report findings.',
-    enabled: false,
+    enabled: true,
+  },
+  {
+    id: 'weekly-spam-users',
+    name: 'Spam user cleanup',
+    cronExpression: 'weekly',
+    task: 'Detect and remove spam/bot user accounts. Run monitor_detect_spam_users to identify suspicious accounts registered in the last 7 days with no posts. Present the list for review. If auto-cleanup is approved, use wp_delete_spam_users to bulk remove them.',
+    enabled: true,
+  },
+  {
+    id: 'weekly-broken-links',
+    name: 'Broken link scan',
+    cronExpression: 'weekly',
+    task: 'Scan all published posts and pages for broken external links (4xx/5xx responses) using monitor_scan_broken_links. Report any broken links found with their source page so they can be fixed.',
+    enabled: true,
+  },
+  {
+    id: 'weekly-db-backup',
+    name: 'Weekly database backup',
+    cronExpression: 'weekly',
+    task: 'Export a full WordPress database backup using wp_db_export. Save to /tmp with a timestamped filename. Report the backup location and size. Log this as a successful backup event.',
+    enabled: true,
+  },
+  {
+    id: 'weekly-db-optimize',
+    name: 'Weekly DB optimise',
+    cronExpression: 'weekly',
+    task: 'Optimise the WordPress database: run wp_db_cleanup to remove trash/spam/expired transients, then run wp_db_optimize to defragment tables. Report before and after DB size using wp_db_size.',
+    enabled: true,
   },
   {
     id: 'monthly-audit',
     name: 'Monthly audit',
     cronExpression: 'monthly',
     task: 'Run a full site audit: WordPress version, PHP version, all plugin versions, content audit (posts/pages/media), security checks, performance baseline, error log review. Produce a full health report.',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'daily-debug',
