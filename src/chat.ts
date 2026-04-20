@@ -19,9 +19,11 @@ const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
 // ─── Config storage (replaces .env for UI users) ──────────────
 
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'site-config.json');
+const CONFIG_PATH  = path.join(process.cwd(), 'data', 'site-config.json');
+const SITES_DIR    = path.join(process.cwd(), 'data', 'sites');
 
 export interface SiteSetup {
+  id?: string;         // unique site ID from frontend
   wpUrl?: string;
   wpUser?: string;
   wpAppPassword?: string;
@@ -29,15 +31,18 @@ export interface SiteSetup {
   sshPort?: number;
   sshUser?: string;
   sshPassword?: string;
+  sshKeyPath?: string;
   wpPath?: string;
   stagingUrl?: string;
   gitRepoUrl?: string;
   slackWebhookUrl?: string;
   siteName?: string;
+  domain?: string;
   setupComplete?: boolean;
-  setupStep?: string; // which step we're on
+  setupStep?: string;
 }
 
+// ── Legacy single-site helpers (kept for backwards compat) ─────
 export function loadSetup(): SiteSetup {
   try {
     if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
@@ -52,7 +57,27 @@ export function saveSetup(cfg: SiteSetup): void {
 
 export function isSetupDone(): boolean {
   const s = loadSetup();
-  return !!(s.setupComplete && s.wpUrl && s.wpAppPassword && s.sshHost);
+  return !!(s.setupComplete && s.wpUrl && s.sshHost);
+}
+
+// ── Per-site storage (multi-site support) ─────────────────────
+
+export function loadSiteById(id: string): SiteSetup | null {
+  try {
+    const p = path.join(SITES_DIR, `${id}.json`);
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch { /* ignore */ }
+  return null;
+}
+
+export function saveSiteById(id: string, cfg: SiteSetup): void {
+  fs.mkdirSync(SITES_DIR, { recursive: true });
+  fs.writeFileSync(path.join(SITES_DIR, `${id}.json`), JSON.stringify({ ...cfg, id }, null, 2));
+}
+
+export function isSiteSetupDone(id: string): boolean {
+  const s = loadSiteById(id);
+  return !!(s?.setupComplete && s.wpUrl && s.sshHost);
 }
 
 function applySetupToEnv(cfg: SiteSetup): void {
@@ -119,6 +144,7 @@ export interface ChatSession {
   id: string;
   messages: ChatMessage[];
   setup: SiteSetup;
+  activeSiteId?: string;   // which site this session is working on
   createdAt: string;
 }
 
@@ -135,6 +161,28 @@ function getOrCreateSession(socketId: string): ChatSession {
     });
   }
   return sessions.get(socketId)!;
+}
+
+// Load a specific site into a session (called when user navigates to chat from a site card)
+export function loadSiteIntoSession(socketId: string, siteId: string): boolean {
+  const cfg = loadSiteById(siteId);
+  if (!cfg) return false;
+
+  const session = getOrCreateSession(socketId);
+  session.activeSiteId = siteId;
+  session.setup = cfg;
+  applySetupToEnv(cfg);
+  return true;
+}
+
+// Check if THIS session's active site is set up
+function isSessionSetupDone(session: ChatSession): boolean {
+  // Check per-site config first
+  if (session.activeSiteId) {
+    return isSiteSetupDone(session.activeSiteId);
+  }
+  // Fallback to legacy single-site config
+  return isSetupDone();
 }
 
 // ─── Onboarding system prompt ─────────────────────────────────
@@ -243,8 +291,15 @@ export async function handleChatMessage(
   socketId: string,
   userText: string,
   io: SocketIO,
+  siteId?: string,
 ): Promise<void> {
   const session = getOrCreateSession(socketId);
+
+  // If siteId provided and session doesn't have it yet, load it
+  if (siteId && session.activeSiteId !== siteId) {
+    loadSiteIntoSession(socketId, siteId);
+  }
+
   const socket = io.sockets.sockets.get(socketId);
   if (!socket) return;
 
@@ -254,17 +309,17 @@ export async function handleChatMessage(
     timestamp: new Date().toISOString(),
   });
 
-  const isOnboarding = !isSetupDone();
+  const setupDone = isSessionSetupDone(session);
 
   // Build system prompt
   let systemPrompt: string;
-  if (isOnboarding) {
+  if (!setupDone) {
     const setupState = JSON.stringify(session.setup, null, 2);
     systemPrompt = ONBOARDING_PROMPT.replace('{SETUP_STATE}', setupState);
   } else {
-    const cfg = loadSetup();
+    const cfg = session.setup;
     applySetupToEnv(cfg);
-    const siteInfo = `URL: ${cfg.wpUrl}\nSite name: ${cfg.siteName || 'unknown'}\nSSH: ${cfg.sshUser}@${cfg.sshHost}`;
+    const siteInfo = `URL: ${cfg.wpUrl}\nSite name: ${cfg.siteName || 'unknown'}\nSSH: ${cfg.sshUser}@${cfg.sshHost}\nWP Path: ${cfg.wpPath || '/var/www/html'}`;
     systemPrompt = AGENT_PROMPT.replace('{SITE_INFO}', siteInfo);
   }
 
@@ -365,6 +420,10 @@ export async function handleChatMessage(
       if (action.type === 'setup_complete') {
         session.setup.setupComplete = true;
         saveSetup(session.setup);
+        // Also save to per-site file if we have a site ID
+        if (session.activeSiteId) {
+          saveSiteById(session.activeSiteId, session.setup);
+        }
         applySetupToEnv(session.setup);
         socket.emit('chat:setup_complete', { siteName: session.setup.siteName });
         // Send welcome message with quick actions
@@ -496,8 +555,8 @@ function buildAssistantMsg(content: string, meta: Record<string, unknown> = {}):
 export function getWelcomeMessage(isSetup: boolean, siteName?: string): ChatMessage {
   if (isSetup && siteName) {
     return buildAssistantMsg(
-      `👋 Welcome back! I'm connected to **${siteName}**.\n\nWhat would you like me to do today?`,
-      { chips: ['Update all plugins', 'Run health check', 'Check for errors', 'Full site audit'] }
+      `⚡ Connected to **${siteName}**. What would you like me to do?\n\nI can update plugins, fix errors, run health checks, create content, test the site, and more — just tell me.`,
+      { chips: ['Update all plugins & themes', 'Run full health check', 'Check error logs', 'Full site audit'] }
     );
   }
   return buildAssistantMsg(

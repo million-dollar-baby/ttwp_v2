@@ -508,6 +508,7 @@ function addSite(){
   const url=document.getElementById('f_url').value.trim();
   const host=document.getElementById('f_host').value.trim();
   const user=document.getElementById('f_user').value.trim();
+  const port=document.getElementById('f_port').value.trim()||'22';
   const pass=sMode==='password'?document.getElementById('f_pass').value.trim():'';
   const key=sMode==='key'?document.getElementById('f_key').value.trim():'';
   if(!url||!host||!user||(!pass&&!key)){toast('Please fill all required fields','⚠️','err');return}
@@ -523,12 +524,25 @@ function addSite(){
     [5,'run','Activating monitoring…'],[5,'ok','Monitoring active — all systems go ✓'],
   ];
   let i=0;
+  const domain=url.replace(/https?:\/\//,'').replace(/\/.*$/,'').toLowerCase();
+  const name=document.getElementById('f_name').value.trim()||domain;
+  const cat=document.getElementById('f_cat').value||'client';
+  const siteId='s'+Date.now();
+
   const run=()=>{
     if(i>=steps.length){
-      const domain=url.replace(/https?:\/\//,'').replace(/\/.*$/,'').toLowerCase();
-      const name=document.getElementById('f_name').value.trim()||domain;
-      const cat=document.getElementById('f_cat').value||'client';
-      const ns={id:'s'+Date.now(),domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
+      // ── POST credentials to backend so chat agent knows about this site ──
+      fetch('/api/sites/register',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          id:siteId, url, name, domain, cat,
+          sshHost:host, sshPort:parseInt(port),
+          sshUser:user, sshPassword:pass, sshKeyPath:key,
+        })
+      }).catch(()=>{}); // best-effort — don't block UI on failure
+
+      const ns={id:siteId,domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
         plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
         load:(Math.random()*2+0.5).toFixed(1)+'s',up:'99.9%',chk:'Just now',cat,at:Date.now()};
       sites.unshift(ns);save();renderAll();

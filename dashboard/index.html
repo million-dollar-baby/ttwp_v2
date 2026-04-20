@@ -309,6 +309,11 @@ socket.on('connect', () => {
   document.getElementById('chDot').className = 'ch-dot on';
   document.getElementById('chStatus').textContent = activeSite ? 'Connected' : 'Ready';
   bar('go'); setTimeout(() => bar('done'), 600);
+
+  // Tell backend which site we're working on so it skips onboarding
+  if (activeSite) {
+    socket.emit('chat:load_site', { siteId: activeSite.id });
+  }
 });
 socket.on('disconnect', () => {
   inp.disabled = true;
@@ -317,16 +322,32 @@ socket.on('disconnect', () => {
 });
 
 socket.on('chat:setup_status', d => {
-  if (d.complete && d.siteName) setConnected(d.siteName);
+  if (d.complete && d.siteName) {
+    setConnected(d.siteName);
+  } else if (d.needsRegister && activeSite) {
+    // Backend doesn't have this site's credentials yet
+    // This happens if Railway redeployed and lost data/sites/ directory
+    document.getElementById('cSt').textContent = 'Re-enter credentials';
+    document.getElementById('cDot').className = 'cp-dot';
+  }
 });
-socket.on('chat:setup_complete', d => {
-  if (d.siteName) setConnected(d.siteName);
-});
+
+// Track if we've already cleared the generic welcome
+let welcomeCleared = false;
 socket.on('chat:message', msg => {
   stopTyp(); clearStream();
+  // If site was loaded, first message from backend is the site-specific welcome
+  // Clear the generic welcome that came from initial connect
+  if (!welcomeCleared && activeSite && msg.role === 'assistant') {
+    welcomeCleared = true;
+    msgsEl.innerHTML = ''; // clear generic "connect your site" welcome
+  }
   addMsg(msg);
   logBox = null; busy = false;
   sndBtn.disabled = !inp.value.trim();
+});
+socket.on('chat:setup_complete', d => {
+  if (d.siteName) setConnected(d.siteName);
 });
 socket.on('chat:typing', on => {
   busy = on; sndBtn.disabled = on || !inp.value.trim();

@@ -4,11 +4,16 @@ import { createServer } from 'http';
 import { Server as SocketIO } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { loadSiteConfig, DASHBOARD_PORT, bus } from './config';
 import { Orchestrator } from './agents/orchestrator';
 import { Scheduler } from './scheduler';
 import { Notifier } from './notifier';
-import { handleChatMessage, getWelcomeMessage, isSetupDone, loadSetup } from './chat';
+import {
+  handleChatMessage, getWelcomeMessage, isSetupDone, loadSetup,
+  saveSiteById, loadSiteById, loadSiteIntoSession, isSiteSetupDone,
+  SiteSetup,
+} from './chat';
 import { resolveApproval, listTasks, getTask, listPendingApprovals } from './memory/store';
 
 const app = express();
@@ -30,7 +35,56 @@ bus.on('log', (entry) => {
 
 // ─── REST API ─────────────────────────────────────────────────
 
-// POST /api/tasks — create and run a task
+// POST /api/sites/register — called from frontend when user adds a site
+// Saves SSH + WP credentials to data/sites/{id}.json on the server
+app.post('/api/sites/register', (req, res) => {
+  const body = req.body as {
+    id?: string; url?: string; name?: string; domain?: string;
+    sshHost?: string; sshPort?: number; sshUser?: string;
+    sshPassword?: string; sshKeyPath?: string; wpPath?: string;
+    wpUser?: string; wpAppPassword?: string;
+  };
+
+  if (!body.id || !body.url || !body.sshHost || !body.sshUser) {
+    res.status(400).json({ error: 'id, url, sshHost, sshUser are required' });
+    return;
+  }
+
+  const cfg: SiteSetup = {
+    id:             body.id,
+    wpUrl:          body.url.replace(/\/$/, ''),
+    wpUser:         body.wpUser     || 'admin',
+    wpAppPassword:  body.wpAppPassword || '',
+    sshHost:        body.sshHost,
+    sshPort:        body.sshPort    || 22,
+    sshUser:        body.sshUser,
+    sshPassword:    body.sshPassword || '',
+    sshKeyPath:     body.sshKeyPath  || '',
+    wpPath:         body.wpPath      || '/var/www/html',
+    siteName:       body.name        || body.domain || body.url,
+    domain:         body.domain      || '',
+    setupComplete:  true,
+  };
+
+  saveSiteById(body.id, cfg);
+  bus.log('info', `Site registered: ${body.domain || body.url} (id: ${body.id})`, 'orchestrator');
+  res.json({ ok: true, siteId: body.id });
+});
+
+// GET /api/sites/:id/status — check if a site has been registered
+app.get('/api/sites/:id/status', (req, res) => {
+  const cfg = loadSiteById(req.params.id);
+  if (!cfg) {
+    res.json({ registered: false });
+    return;
+  }
+  res.json({
+    registered: true,
+    setupComplete: cfg.setupComplete || false,
+    siteName: cfg.siteName || cfg.domain || cfg.wpUrl,
+    wpUrl: cfg.wpUrl,
+  });
+});
 app.post('/api/tasks', async (req, res) => {
   const { description } = req.body as { description?: string };
   if (!description) {
@@ -115,15 +169,41 @@ io.on('connection', (socket) => {
 
   // ── Chat interface events ──────────────────────────────────
 
-  // Send welcome on connect
+  // Send welcome on connect (site-specific status sent via chat:load_site handler)
   const welcome = getWelcomeMessage(isSetupDone(), loadSetup().siteName);
   socket.emit('chat:message', welcome);
-  socket.emit('chat:setup_status', { complete: isSetupDone(), siteName: loadSetup().siteName });
 
-  // User sends a chat message
-  socket.on('chat:send', async (data: { text: string }) => {
+  // Client tells us which site it's working on (called from index.html on load)
+  socket.on('chat:load_site', (data: { siteId: string }) => {
+    if (!data?.siteId) return;
+
+    const loaded = loadSiteIntoSession(socket.id, data.siteId);
+    if (loaded) {
+      const cfg = loadSiteById(data.siteId);
+      const siteName = cfg?.siteName || cfg?.domain || cfg?.wpUrl || 'your site';
+
+      // Tell frontend the site is ready
+      socket.emit('chat:setup_status', {
+        complete: true,
+        siteName,
+      });
+
+      // Replace the generic welcome with a site-specific one
+      const siteWelcome = getWelcomeMessage(true, siteName);
+      socket.emit('chat:message', siteWelcome);
+
+      bus.log('debug', `Session ${socket.id} loaded site: ${data.siteId} (${siteName})`, 'orchestrator');
+    } else {
+      // Site not yet registered on backend (e.g. after Railway redeploy wipes data/)
+      socket.emit('chat:setup_status', { complete: false, siteName: null, needsRegister: true });
+      bus.log('warn', `Site ${data.siteId} not found in backend storage — needsRegister`, 'orchestrator');
+    }
+  });
+
+  // User sends a chat message — now passes siteId too
+  socket.on('chat:send', async (data: { text: string; siteId?: string }) => {
     if (!data?.text?.trim()) return;
-    await handleChatMessage(socket.id, data.text.trim(), io);
+    await handleChatMessage(socket.id, data.text.trim(), io, data.siteId);
   });
 
   // User resolves an approval from inside chat
@@ -155,6 +235,23 @@ io.on('connection', (socket) => {
   socket.on('resolve_approval', (data: { id: string; approved: boolean }) => {
     resolveApproval(data.id, data.approved);
     io.emit('approval_resolved', data);
+  });
+
+  socket.on('agent:kill', () => {
+    bus.log('warn', `Kill switch activated by client ${socket.id}`, 'orchestrator');
+    scheduler?.stop();
+    // Re-start scheduler after brief pause so it can be resumed
+    setTimeout(() => scheduler?.start(60_000), 500);
+  });
+
+  socket.on('agent:pause', () => {
+    bus.log('info', `Agent paused by client ${socket.id}`, 'orchestrator');
+    scheduler?.stop();
+  });
+
+  socket.on('agent:resume', () => {
+    bus.log('info', `Agent resumed by client ${socket.id}`, 'orchestrator');
+    scheduler?.start(60_000);
   });
 
   socket.on('disconnect', () => {
