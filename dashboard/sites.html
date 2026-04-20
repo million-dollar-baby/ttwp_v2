@@ -5,723 +5,565 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WP Agent — All Websites</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0b0d12;--bg2:#111318;--bg3:#181b24;--bg4:#1e2230;--bg5:#252940;
-  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);--border3:rgba(255,255,255,0.18);
-  --text:#e2e4ec;--muted:#7a8299;--muted2:#4a5168;
-  --purple:#8b5cf6;--purple2:#7c3aed;--purple-glow:rgba(139,92,246,0.15);
-  --teal:#14b8a6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;
-  --orange:#f97316;
-  --r:12px;--card-r:16px;
-  font-family:'DM Sans',sans-serif;
+  --bg:#08090e;--bg2:#0d0e17;--bg3:#131421;--bg4:#191b2c;--bg5:#1f2235;
+  --b1:rgba(255,255,255,0.04);--b2:rgba(255,255,255,0.08);--b3:rgba(255,255,255,0.14);
+  --t1:#e4e6f1;--t2:#8b93aa;--t3:#42485c;
+  --p1:#7b68f0;--p2:#5548d4;--ps:rgba(123,104,240,0.1);--pg:rgba(123,104,240,0.22);
+  --sky:#38bdf8;--emerald:#10d9a0;--amber:#f6a523;--rose:#f43f5e;--blue:#4f8ef7;--violet:#a78bfa;
+  --r:9px;--r2:13px;--r3:18px;
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
 }
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+::selection{background:var(--pg);color:var(--t1)}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
 
-/* ── Scrollbar ───────────────────────────────── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
-
-/* ── Layout ──────────────────────────────────── */
 .layout{display:flex;min-height:100vh}
 
-/* ── Sidebar ─────────────────────────────────── */
-.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
-.sb-logo{padding:18px 16px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--purple),var(--teal));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 0 16px rgba(139,92,246,0.3)}
-.logo-name{font-size:14px;font-weight:600}
-.logo-sub{font-size:11px;color:var(--muted)}
-.sb-nav{padding:10px 8px;flex:1}
-.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted2);padding:6px 10px 4px}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;color:var(--muted);font-size:13px;transition:all 0.15s;margin:1px 0;text-decoration:none}
-.nav-item:hover{background:var(--bg3);color:var(--text)}
-.nav-item.active{background:var(--purple-glow);color:var(--text);border:1px solid rgba(139,92,246,0.2)}
-.nav-item .ni{font-size:15px;width:20px;text-align:center;flex-shrink:0}
-.nav-badge{margin-left:auto;background:var(--purple);color:#fff;font-size:10px;font-weight:600;border-radius:20px;padding:1px 7px;font-family:'DM Mono',monospace}
-.nav-badge.warn{background:var(--amber)}
-.sb-foot{padding:10px 8px 14px;border-top:1px solid var(--border)}
-.sb-user{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:background 0.15s}
-.sb-user:hover{background:var(--bg3)}
-.user-av{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
-.user-nm{font-size:13px;font-weight:500}
-.user-pl{font-size:11px;color:var(--muted)}
+/* ════ SIDEBAR ════ */
+.sb{width:216px;background:var(--bg2);border-right:1px solid var(--b1);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto}
 
-/* ── Main content ────────────────────────────── */
-.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow-y:auto}
-.topbar{padding:18px 28px 0;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding-bottom:16px}
-.page-title{font-size:20px;font-weight:600;flex:1}
-.search-wrap{position:relative;width:260px}
-.search-wrap input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 12px 8px 34px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s}
-.search-wrap input:focus{border-color:rgba(139,92,246,0.4)}
-.search-wrap input::placeholder{color:var(--muted2)}
-.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted2);pointer-events:none}
-.filter-wrap{display:flex;gap:6px}
-.filter-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:8px;padding:7px 12px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
-.filter-btn:hover,.filter-btn.active{background:var(--bg4);color:var(--text);border-color:var(--border3)}
-.add-btn{background:linear-gradient(135deg,var(--purple),var(--purple2));border:none;color:#fff;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:7px;transition:opacity 0.15s,transform 0.1s;white-space:nowrap;box-shadow:0 4px 14px rgba(139,92,246,0.35)}
-.add-btn:hover{opacity:0.92;transform:translateY(-1px)}
-.add-btn:active{transform:translateY(0)}
+.sb-logo{padding:14px 12px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--b1)}
+.logo-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#7b68f0 0%,#38bdf8 100%);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;box-shadow:0 0 18px rgba(123,104,240,0.35)}
+.logo-text .lt{font-size:13px;font-weight:700;letter-spacing:-0.02em;color:var(--t1)}
+.logo-text .ls{font-size:10px;color:var(--t3);margin-top:-1px}
 
-/* ── Stats bar ───────────────────────────────── */
-.stats-bar{display:flex;gap:12px;padding:16px 28px 0}
-.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;flex:1;min-width:0}
-.stat-value{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;line-height:1}
-.stat-label{font-size:11px;color:var(--muted);margin-top:3px}
-.stat-card.green .stat-value{color:var(--green)}
-.stat-card.amber .stat-value{color:var(--amber)}
-.stat-card.red .stat-value{color:var(--red)}
-.stat-card.purple .stat-value{color:var(--purple)}
+.sb-nav{flex:1;padding:6px 6px}
+.sn-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--t3);padding:8px 8px 4px;margin-top:4px}
+.sn-label:first-child{margin-top:0}
+.ni{display:flex;align-items:center;gap:8px;padding:6.5px 8px;border-radius:7px;cursor:pointer;color:var(--t2);font-size:13px;font-weight:450;transition:all .12s;text-decoration:none;position:relative;user-select:none;margin:1px 0}
+.ni:hover{background:var(--bg3);color:var(--t1)}
+.ni.on{background:var(--ps);color:var(--t1);font-weight:500}
+.ni.on::before{content:'';position:absolute;left:-1px;top:25%;bottom:25%;width:2px;background:var(--p1);border-radius:2px}
+.ni-ic{width:16px;text-align:center;flex-shrink:0;font-size:13px;opacity:.75}
+.ni.on .ni-ic{opacity:1}
+.ni-badge{margin-left:auto;font-size:9.5px;font-weight:600;border-radius:20px;padding:1.5px 6px;font-family:'JetBrains Mono',monospace}
+.ni-badge.def{background:var(--bg4);color:var(--t3)}
+.ni-badge.red{background:rgba(244,63,94,.14);color:var(--rose)}
+.ni-badge.pur{background:var(--ps);color:var(--p1)}
 
-/* ── Grid ────────────────────────────────────── */
-.grid-wrap{padding:20px 28px 40px}
-.grid-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.grid-count{font-size:13px;color:var(--muted)}
-.sort-select{background:var(--bg3);border:1px solid var(--border2);color:var(--muted);border-radius:8px;padding:5px 10px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.sb-foot{padding:6px 6px 10px;border-top:1px solid var(--b1);margin-top:auto}
+.user-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:background .12s}
+.user-row:hover{background:var(--bg3)}
+.u-av{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#4f8ef7,#7b68f0);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.u-name{font-size:12px;font-weight:600;color:var(--t1)}
+.u-plan{font-size:10px;color:var(--t3)}
 
-/* ── Site Card ───────────────────────────────── */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:18px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.2s;pointer-events:none}
-.card:hover{border-color:var(--border3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
-.card:hover::before{opacity:1}
-.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
-.card-site{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:2px}
-.status-dot.online{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,0.5)}
-.status-dot.warning{background:var(--amber);box-shadow:0 0 8px rgba(245,158,11,0.5)}
-.status-dot.offline{background:var(--red);box-shadow:0 0 8px rgba(239,68,68,0.5)}
-.site-name-wrap{min-width:0}
-.site-domain{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.site-domain a{color:var(--text);text-decoration:none}
-.site-domain a:hover{color:var(--purple)}
-.site-domain .ext-icon{font-size:11px;color:var(--muted2);margin-left:3px}
-.site-label{font-size:11px;color:var(--muted);margin-top:1px}
-.card-actions{display:flex;gap:5px;flex-shrink:0;margin-left:8px}
-.ca{width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all 0.15s;flex-shrink:0;text-decoration:none;color:var(--text)}
-.ca:hover{background:var(--bg4);border-color:var(--border3)}
-.ca.teal:hover{background:rgba(20,184,166,0.12);border-color:rgba(20,184,166,0.3);color:var(--teal)}
-.ca.purple:hover{background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3);color:var(--purple)}
-.ca.blue:hover{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:var(--blue)}
-.ca.red:hover{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.25);color:var(--red)}
+/* ════ MAIN ════ */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow-y:auto}
 
-.card-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
-.tag{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:4px}
-.tag.update{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);color:var(--amber)}
-.tag.debug{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.25);color:var(--red)}
-.tag.ok{background:rgba(34,197,94,0.07);border-color:rgba(34,197,94,0.2);color:var(--green)}
+/* Topbar */
+.topbar{padding:14px 22px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--b1);position:sticky;top:0;z-index:20;background:rgba(8,9,14,.88);backdrop-filter:blur(16px)}
+.pg-title{font-size:17px;font-weight:700;letter-spacing:-.025em;flex:1}
+.srch{position:relative}
+.srch input{background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:7px 10px 7px 29px;color:var(--t1);font-size:12.5px;font-family:inherit;outline:none;transition:border-color .15s;width:200px}
+.srch input:focus{border-color:rgba(123,104,240,.45);background:var(--bg4)}
+.srch input::placeholder{color:var(--t3)}
+.s-ic{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:12px;pointer-events:none}
+.filt{display:flex;gap:4px}
+.fb{background:transparent;border:1px solid var(--b2);color:var(--t2);border-radius:7px;padding:6px 9px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .12s;white-space:nowrap}
+.fb:hover,.fb.on{background:var(--bg3);color:var(--t1);border-color:var(--b3)}
+.ab{background:linear-gradient(135deg,var(--p1),var(--p2));border:none;color:#fff;border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity .12s,transform .1s;box-shadow:0 3px 14px rgba(123,104,240,.28);white-space:nowrap}
+.ab:hover{opacity:.88;transform:translateY(-1px)}
+.ab:active{transform:none}
 
-.card-meta{display:flex;gap:12px;font-size:12px;color:var(--muted);padding-top:11px;border-top:1px solid var(--border)}
-.meta-item{display:flex;align-items:center;gap:4px}
-.meta-icon{opacity:0.6;font-size:13px}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px 22px 0}
+.sc{background:var(--bg2);border:1px solid var(--b1);border-radius:11px;padding:11px 14px;position:relative}
+.sc::before{content:'';position:absolute;top:0;left:14px;right:14px;height:1.5px;border-radius:2px;opacity:.5}
+.sc.g::before{background:var(--emerald)}.sc.a::before{background:var(--amber)}.sc.r::before{background:var(--rose)}.sc.p::before{background:var(--p1)}
+.sv{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.sc.g .sv{color:var(--emerald)}.sc.a .sv{color:var(--amber)}.sc.r .sv{color:var(--rose)}.sc.p .sv{color:var(--p1)}
+.sl{font-size:11px;color:var(--t2);margin-top:3px;font-weight:500}
 
-/* update count highlight */
-.update-count{color:var(--amber);font-weight:600}
+/* Grid */
+.gw{padding:16px 22px 48px}
+.gh{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.gc{font-size:11.5px;color:var(--t2)}
+.ss{background:var(--bg3);border:1px solid var(--b2);color:var(--t2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:inherit;cursor:pointer;outline:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:11px}
 
-/* ── Empty state ─────────────────────────────── */
-.empty{text-align:center;padding:60px 20px;color:var(--muted)}
-.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.4}
-.empty-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px}
-.empty-sub{font-size:14px;margin-bottom:24px}
-.empty-btn{background:linear-gradient(135deg,var(--purple),var(--purple2));border:none;color:#fff;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(139,92,246,0.35)}
+/* Card */
+.card{background:var(--bg2);border:1px solid var(--b1);border-radius:13px;cursor:pointer;transition:all .18s;overflow:hidden}
+.card:hover{border-color:var(--b3);transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,0,0,.45)}
 
-/* ── Modal ───────────────────────────────────── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s}
-.modal-overlay.open{opacity:1;pointer-events:all}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:520px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.6);transform:translateY(16px) scale(0.97);transition:transform 0.25s}
-.modal-overlay.open .modal{transform:translateY(0) scale(1)}
-.modal-head{padding:22px 24px 0;display:flex;align-items:flex-start;justify-content:space-between}
-.modal-title{font-size:17px;font-weight:700}
-.modal-sub{font-size:13px;color:var(--muted);margin-top:3px}
-.modal-close{width:28px;height:28px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;cursor:pointer;font-size:15px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
-.modal-close:hover{background:var(--bg4);color:var(--text)}
-.modal-body{padding:20px 24px 24px}
-.form-section{margin-bottom:20px}
-.form-sec-label{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--purple);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.form-row.full{grid-template-columns:1fr}
-.field{display:flex;flex-direction:column;gap:5px}
-.field label{font-size:12px;font-weight:500;color:var(--muted)}
-.field input,.field select,.field textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:rgba(139,92,246,0.5);background:var(--bg4)}
-.field input::placeholder,.field textarea::placeholder{color:var(--muted2)}
-.field select{cursor:pointer}
-.field select option{background:var(--bg3)}
-.ssh-toggle{display:flex;gap:6px;margin-bottom:12px}
-.toggle-opt{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif}
-.toggle-opt.active{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:var(--text)}
-.info-box{background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:16px}
-.modal-actions{display:flex;gap:8px;padding-top:4px}
-.modal-cancel{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:10px;padding:10px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background 0.15s}
-.modal-cancel:hover{background:var(--bg4)}
-.modal-submit{flex:2;background:linear-gradient(135deg,var(--purple),var(--purple2));border:none;color:#fff;border-radius:10px;padding:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:opacity 0.15s;box-shadow:0 4px 14px rgba(139,92,246,0.3)}
-.modal-submit:hover{opacity:0.9}
-.modal-submit:disabled{opacity:0.4;cursor:not-allowed}
+.ci{padding:14px 14px 10px}
+.ct{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.si{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot.on{background:var(--emerald);box-shadow:0 0 6px rgba(16,217,160,.55)}
+.dot.wa{background:var(--amber);box-shadow:0 0 6px rgba(246,165,35,.5)}
+.dot.of{background:var(--rose);box-shadow:0 0 6px rgba(244,63,94,.5)}
+.sd{font-size:13.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm{font-size:11px;color:var(--t2);margin-top:1px}
 
-/* ── Toast ───────────────────────────────────── */
-.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:slideIn 0.3s ease;min-width:240px}
-.toast.success{border-color:rgba(34,197,94,0.3)}
-.toast.error{border-color:rgba(239,68,68,0.3)}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes fadeOut{to{transform:translateX(100%);opacity:0}}
+.acts{display:flex;gap:3px;flex-shrink:0;margin-left:6px}
+.ac{width:27px;height:27px;border-radius:6px;border:1px solid var(--b2);background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:all .12s;flex-shrink:0;text-decoration:none;color:var(--t2);position:relative}
+.ac:hover{color:var(--t1);background:var(--bg4);border-color:var(--b3)}
+.ac[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100%+5px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--b3);color:var(--t1);font-size:10px;padding:2px 7px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:10}
+.ac.sky:hover{background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.28);color:var(--sky)}
+.ac.pur:hover{background:var(--ps);border-color:rgba(123,104,240,.32);color:var(--p1)}
+.ac.blue:hover{background:rgba(79,142,247,.09);border-color:rgba(79,142,247,.28);color:var(--blue)}
+.ac.rose:hover{background:rgba(244,63,94,.07);border-color:rgba(244,63,94,.22);color:var(--rose)}
 
-/* ── Delete Confirm Modal ────────────────────── */
-.confirm-modal{background:var(--bg2);border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:24px;width:360px;max-width:calc(100vw - 32px);box-shadow:0 24px 80px rgba(0,0,0,0.6);transform:translateY(16px) scale(0.97);transition:transform 0.25s}
-.modal-overlay.open .confirm-modal{transform:translateY(0) scale(1)}
-.confirm-icon{font-size:32px;margin-bottom:12px}
-.confirm-title{font-size:16px;font-weight:700;margin-bottom:6px}
-.confirm-text{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6}
-.confirm-domain{color:var(--text);font-weight:600}
-.confirm-actions{display:flex;gap:8px}
-.confirm-cancel{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:9px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background 0.15s}
-.confirm-cancel:hover{background:var(--bg4)}
-.confirm-del{flex:1;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);color:var(--red);border-radius:9px;padding:9px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background 0.15s}
-.confirm-del:hover{background:rgba(239,68,68,0.2)}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:0}
+.tg{background:var(--bg3);border:1px solid var(--b1);border-radius:4px;padding:2px 7px;font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;letter-spacing:-.01em}
+.tg.upd{background:rgba(246,165,35,.06);border-color:rgba(246,165,35,.22);color:var(--amber)}
+.tg.dbg{background:rgba(244,63,94,.05);border-color:rgba(244,63,94,.18);color:var(--rose)}
+.tg.ok{background:rgba(16,217,160,.05);border-color:rgba(16,217,160,.18);color:var(--emerald)}
 
-/* ── Responsive ──────────────────────────────── */
-@media(max-width:900px){
-  .sidebar{display:none}
-  .stats-bar{padding:12px 16px 0;flex-wrap:wrap}
-  .stat-card{min-width:calc(50% - 6px)}
-  .grid-wrap{padding:16px 16px 40px}
-  .grid{grid-template-columns:1fr}
-  .topbar{padding:14px 16px}
-  .search-wrap{width:180px}
-}
+.cf{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--b1);font-size:11px;color:var(--t2);background:rgba(0,0,0,.18)}
+.cf span{display:flex;align-items:center;gap:3px}
+.cf span:last-child{margin-left:auto}
+.fi{opacity:.45;font-size:11px}
+
+/* Empty */
+.empty{grid-column:1/-1;text-align:center;padding:56px 20px}
+.empty-ic{font-size:36px;opacity:.3;margin-bottom:12px}
+.empty-t{font-size:15px;font-weight:600;margin-bottom:5px}
+.empty-s{font-size:13px;color:var(--t2);margin-bottom:18px}
+
+/* ════ OVERLAYS ════ */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(7px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov.open{opacity:1;pointer-events:all}
+
+/* Add Modal */
+.modal{background:var(--bg2);border:1px solid var(--b2);border-radius:18px;width:490px;max-width:calc(100vw - 28px);max-height:92vh;overflow-y:auto;box-shadow:0 28px 72px rgba(0,0,0,.65);transform:translateY(18px) scale(.96);transition:transform .22s}
+.ov.open .modal{transform:none}
+.mh{padding:20px 20px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.mt{font-size:15px;font-weight:700;letter-spacing:-.015em}
+.ms{font-size:12px;color:var(--t2);margin-top:2px}
+.mx{width:25px;height:25px;background:var(--bg3);border:1px solid var(--b2);border-radius:6px;cursor:pointer;font-size:13px;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0}
+.mx:hover{background:var(--bg4);color:var(--t1)}
+.mb{padding:16px 20px 20px}
+
+.inote{background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.16);border-radius:8px;padding:9px 11px;font-size:12px;color:rgba(147,191,252,.9);line-height:1.6;margin-bottom:16px}
+.fsec{margin-bottom:16px}
+.fl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--p1);margin-bottom:8px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fr.full{grid-template-columns:1fr}
+.fd{display:flex;flex-direction:column;gap:4px}
+.fd label{font-size:11px;font-weight:600;color:var(--t2)}
+.fd input,.fd select{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:7px 10px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;width:100%}
+.fd input:focus,.fd select:focus{border-color:rgba(123,104,240,.5);background:var(--bg4)}
+.fd input::placeholder{color:var(--t3)}
+.fd select option{background:var(--bg3)}
+
+.stab{display:flex;gap:4px;margin-bottom:9px}
+.to{flex:1;padding:6px;border-radius:7px;border:1px solid var(--b2);background:var(--bg3);color:var(--t2);font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:all .12s;font-family:inherit}
+.to.on{background:var(--ps);border-color:rgba(123,104,240,.4);color:var(--t1)}
+
+/* Connection test */
+.tb{background:var(--bg3);border:1px solid var(--b2);border-radius:9px;padding:11px;margin-top:10px;display:none}
+.tb.show{display:block}
+.ts{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:var(--t2)}
+.ts.ok{color:var(--emerald)}.ts.fail{color:var(--rose)}.ts.run{color:var(--amber)}
+.tic{width:16px;text-align:center;font-size:13px}
+.tspin{animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.ma{display:flex;gap:7px;margin-top:16px}
+.mc{flex:1;background:var(--bg3);border:1px solid var(--b2);color:var(--t1);border-radius:8px;padding:8.5px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .12s}
+.mc:hover{background:var(--bg4)}
+.msub{flex:2;background:linear-gradient(135deg,var(--p1),var(--p2));border:none;color:#fff;border-radius:8px;padding:8.5px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .12s;box-shadow:0 3px 12px rgba(123,104,240,.28)}
+.msub:hover{opacity:.88}
+.msub:disabled{opacity:.3;cursor:not-allowed}
+
+/* Delete Modal */
+.dm{background:var(--bg2);border:1px solid rgba(244,63,94,.22);border-radius:15px;padding:22px;width:330px;max-width:calc(100vw - 28px);box-shadow:0 24px 64px rgba(0,0,0,.6);transform:translateY(14px) scale(.97);transition:transform .2s}
+.ov.open .dm{transform:none}
+.di{font-size:26px;margin-bottom:10px}
+.dt{font-size:14.5px;font-weight:700;margin-bottom:4px}
+.dd{font-size:12.5px;color:var(--t2);margin-bottom:16px;line-height:1.6}
+.da{display:flex;gap:7px}
+.dc{flex:1;background:var(--bg3);border:1px solid var(--b2);color:var(--t1);border-radius:7px;padding:8px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .12s}
+.dc:hover{background:var(--bg4)}
+.dx{flex:1;background:rgba(244,63,94,.09);border:1px solid rgba(244,63,94,.28);color:var(--rose);border-radius:7px;padding:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .12s}
+.dx:hover{background:rgba(244,63,94,.18)}
+
+/* Toasts */
+.tw{position:fixed;bottom:20px;right:20px;z-index:3000;display:flex;flex-direction:column;gap:6px}
+.toast{background:var(--bg3);border:1px solid var(--b2);border-radius:9px;padding:9px 13px;font-size:12.5px;display:flex;align-items:center;gap:7px;box-shadow:0 6px 20px rgba(0,0,0,.5);animation:tin .22s ease;min-width:200px}
+.toast.ok{border-color:rgba(16,217,160,.28)}.toast.err{border-color:rgba(244,63,94,.28)}
+@keyframes tin{from{transform:translateX(108%);opacity:0}to{transform:none;opacity:1}}
+@keyframes tout{to{transform:translateX(108%);opacity:0}}
+
+@media(max-width:820px){.sb{display:none}.stats{padding:10px 12px 0;grid-template-columns:1fr 1fr}.gw{padding:12px 12px 40px}.grid{grid-template-columns:1fr}.topbar{padding:11px 12px;flex-wrap:wrap;gap:7px}.srch input{width:150px}}
 </style>
 </head>
 <body>
-
 <div class="layout">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sb-logo">
-      <div class="logo-icon">⚡</div>
+
+<!-- ═════ SIDEBAR ═════ -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="logo-mark">⚡</div>
+    <div class="logo-text">
+      <div class="lt">WP Agent</div>
+      <div class="ls">WordPress AI</div>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sn-label">Main</div>
+    <a href="sites.html" class="ni on">
+      <span class="ni-ic">🌐</span>All Websites
+      <span class="ni-badge pur" id="sbCnt">0</span>
+    </a>
+
+    <div class="sn-label">Monitoring</div>
+    <div class="ni" onclick="nt('Alerts coming soon')">
+      <span class="ni-ic">🔔</span>Alerts
+      <span class="ni-badge red" id="sbAlerts">0</span>
+    </div>
+    <div class="ni" onclick="nt('Task Log coming soon')">
+      <span class="ni-ic">📋</span>Task Log
+    </div>
+    <div class="ni" onclick="nt('Reports coming soon')">
+      <span class="ni-ic">📊</span>Reports
+    </div>
+    <div class="ni" onclick="nt('Schedule coming soon')">
+      <span class="ni-ic">📅</span>Schedule
+    </div>
+
+    <div class="sn-label">Settings</div>
+    <div class="ni" onclick="nt('Preferences coming soon')">
+      <span class="ni-ic">⚙️</span>Preferences
+    </div>
+    <div class="ni" onclick="nt('API Keys coming soon')">
+      <span class="ni-ic">🔑</span>API Keys
+    </div>
+  </nav>
+
+  <div class="sb-foot">
+    <div class="user-row">
+      <div class="u-av">A</div>
       <div>
-        <div class="logo-name">WP Agent</div>
-        <div class="logo-sub">WordPress AI</div>
+        <div class="u-name">Admin</div>
+        <div class="u-plan">Pro Plan</div>
       </div>
     </div>
-    <nav class="sb-nav">
-      <div class="nav-label">Main</div>
-      <a href="sites.html" class="nav-item active">
-        <span class="ni">🌐</span> All Websites
-        <span class="nav-badge" id="siteCount">0</span>
-      </a>
-      <a href="index.html" class="nav-item">
-        <span class="ni">💬</span> Agent Chat
-      </a>
+  </div>
+</aside>
 
-      <div class="nav-label" style="margin-top:8px">Monitoring</div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">🔔</span> Alerts
-        <span class="nav-badge warn" id="alertCount">0</span>
-      </div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">📋</span> Task Log
-      </div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">📊</span> Reports
-      </div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">🗓</span> Schedule
-      </div>
+<!-- ═════ MAIN ═════ -->
+<main class="main">
 
-      <div class="nav-label" style="margin-top:8px">Settings</div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">⚙️</span> Preferences
-      </div>
-      <div class="nav-item" onclick="showToast('Coming soon!','💡')">
-        <span class="ni">🔑</span> API Keys
-      </div>
-    </nav>
-    <div class="sb-foot">
-      <div class="sb-user">
-        <div class="user-av">👤</div>
-        <div>
-          <div class="user-nm">Admin</div>
-          <div class="user-pl">Pro Plan</div>
-        </div>
-      </div>
+  <div class="topbar">
+    <div class="pg-title">All Websites</div>
+    <div class="srch">
+      <span class="s-ic">🔍</span>
+      <input type="text" id="searchInp" placeholder="Search…" oninput="renderGrid()">
     </div>
-  </aside>
-
-  <!-- Main -->
-  <main class="main">
-    <!-- Top bar -->
-    <div class="topbar">
-      <div class="page-title">All Websites</div>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Search websites…" oninput="filterSites()"/>
-      </div>
-      <div class="filter-wrap">
-        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-        <button class="filter-btn" onclick="setFilter('online',this)">🟢 Online</button>
-        <button class="filter-btn" onclick="setFilter('updates',this)">⬆ Updates</button>
-        <button class="filter-btn" onclick="setFilter('issues',this)">⚠ Issues</button>
-      </div>
-      <button class="add-btn" onclick="openModal()">
-        <span style="font-size:16px">+</span> Add Website
-      </button>
+    <div class="filt">
+      <button class="fb on" onclick="setF('all',this)">All</button>
+      <button class="fb" onclick="setF('online',this)">🟢 Online</button>
+      <button class="fb" onclick="setF('updates',this)">⬆ Updates</button>
+      <button class="fb" onclick="setF('issues',this)">⚠ Issues</button>
     </div>
+    <button class="ab" onclick="openAdd()"><span style="font-size:15px;line-height:1">+</span>Add Website</button>
+  </div>
 
-    <!-- Stats bar -->
-    <div class="stats-bar" id="statsBar">
-      <div class="stat-card green">
-        <div class="stat-value" id="statOnline">0</div>
-        <div class="stat-label">Online</div>
-      </div>
-      <div class="stat-card amber">
-        <div class="stat-value" id="statUpdates">0</div>
-        <div class="stat-label">Updates Available</div>
-      </div>
-      <div class="stat-card red">
-        <div class="stat-value" id="statIssues">0</div>
-        <div class="stat-label">Issues</div>
-      </div>
-      <div class="stat-card purple">
-        <div class="stat-value" id="statTotal">0</div>
-        <div class="stat-label">Total Sites</div>
-      </div>
-    </div>
+  <div class="stats">
+    <div class="sc g"><div class="sv" id="stOn">0</div><div class="sl">Online</div></div>
+    <div class="sc a"><div class="sv" id="stUp">0</div><div class="sl">Updates Available</div></div>
+    <div class="sc r"><div class="sv" id="stIs">0</div><div class="sl">Issues</div></div>
+    <div class="sc p"><div class="sv" id="stTo">0</div><div class="sl">Total Sites</div></div>
+  </div>
 
-    <!-- Grid -->
-    <div class="grid-wrap">
-      <div class="grid-head">
-        <span class="grid-count" id="gridCount">Showing 0 websites</span>
-        <select class="sort-select" onchange="sortSites(this.value)">
-          <option value="name">Sort by Name</option>
-          <option value="status">Sort by Status</option>
-          <option value="updates">Sort by Updates</option>
-          <option value="added">Sort by Date Added</option>
-        </select>
-      </div>
-      <div class="grid" id="sitesGrid"></div>
+  <div class="gw">
+    <div class="gh">
+      <span class="gc" id="gCount">0 websites</span>
+      <select class="ss" onchange="sb=this.value;renderGrid()">
+        <option value="name">Sort by Name</option>
+        <option value="status">Sort by Status</option>
+        <option value="updates">Sort by Updates</option>
+        <option value="added">Sort by Date Added</option>
+      </select>
     </div>
-  </main>
+    <div class="grid" id="grid"></div>
+  </div>
+</main>
 </div>
 
-<!-- ── Add Website Modal ────────────────────────── -->
-<div class="modal-overlay" id="modalOverlay" onclick="outsideClose(event)">
+<!-- ═════ ADD MODAL ═════ -->
+<div class="ov" id="addOv" onclick="ooc(event,'addOv',closeAdd)">
   <div class="modal">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title">➕ Add New Website</div>
-        <div class="modal-sub">Connect your WordPress site via SSH</div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="mh">
+      <div><div class="mt">Add WordPress Website</div><div class="ms">SSH credentials only — agent handles everything else</div></div>
+      <button class="mx" onclick="closeAdd()">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="info-box">
-        🔒 Only SSH credentials are needed. WP Agent automatically installs its plugin, creates app passwords, and sets up monitoring — no manual steps required.
-      </div>
+    <div class="mb">
+      <div class="inote">🔒 The agent will SSH into your server, auto-install the WP plugin, create an app password, and activate monitoring — no manual steps required.</div>
 
-      <div class="form-section">
-        <div class="form-sec-label">🌐 Site Details</div>
-        <div class="form-row full" style="margin-bottom:10px">
-          <div class="field">
-            <label>Site URL <span style="color:var(--red)">*</span></label>
-            <input type="url" id="f_url" placeholder="https://yoursite.com"/>
-          </div>
+      <div class="fsec">
+        <div class="fl">Site Details</div>
+        <div class="fr">
+          <div class="fd"><label>Site URL *</label><input id="f_url" type="url" placeholder="https://yoursite.com"></div>
+          <div class="fd"><label>Label</label><input id="f_name" type="text" placeholder="Client name"></div>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label>Display Name</label>
-            <input type="text" id="f_name" placeholder="My Client Site"/>
-          </div>
-          <div class="field">
-            <label>Category</label>
-            <select id="f_cat">
-              <option value="">— Select —</option>
-              <option value="client">Client Site</option>
-              <option value="personal">Personal</option>
-              <option value="ecommerce">E-Commerce</option>
-              <option value="staging">Staging</option>
-              <option value="other">Other</option>
-            </select>
+        <div class="fr" style="margin-top:8px">
+          <div class="fd"><label>Category</label>
+            <select id="f_cat"><option value="client">Client</option><option value="own">Own Site</option><option value="staging">Staging</option><option value="other">Other</option></select>
           </div>
         </div>
       </div>
 
-      <div class="form-section">
-        <div class="form-sec-label">🔐 SSH Credentials</div>
-        <div class="form-row" style="margin-bottom:10px">
-          <div class="field">
-            <label>SSH Host <span style="color:var(--red)">*</span></label>
-            <input type="text" id="f_host" placeholder="123.45.67.89"/>
-          </div>
-          <div class="field">
-            <label>SSH Port</label>
-            <input type="number" id="f_port" placeholder="22" value="22"/>
-          </div>
+      <div class="fsec">
+        <div class="fl">SSH Access</div>
+        <div class="fr">
+          <div class="fd"><label>SSH Host *</label><input id="f_host" type="text" placeholder="server.example.com"></div>
+          <div class="fd"><label>Port</label><input id="f_port" type="number" value="22"></div>
         </div>
-        <div class="form-row full" style="margin-bottom:10px">
-          <div class="field">
-            <label>SSH Username <span style="color:var(--red)">*</span></label>
-            <input type="text" id="f_user" placeholder="root or ubuntu"/>
+        <div class="fd" style="margin-top:8px"><label>SSH Username *</label><input id="f_user" type="text" placeholder="ubuntu / root"></div>
+        <div style="margin-top:10px">
+          <div class="stab">
+            <button class="to on" id="mPw" onclick="setM('password',this)">🔑 Password</button>
+            <button class="to" id="mKey" onclick="setM('key',this)">📄 SSH Key</button>
           </div>
-        </div>
-
-        <div class="ssh-toggle">
-          <button class="toggle-opt active" onclick="setSshMode('password',this)" id="modePass">🔑 Password</button>
-          <button class="toggle-opt" onclick="setSshMode('key',this)" id="modeKey">📄 SSH Key</button>
-        </div>
-
-        <div id="passField" class="form-row full">
-          <div class="field">
-            <label>SSH Password <span style="color:var(--red)">*</span></label>
-            <input type="password" id="f_pass" placeholder="••••••••••••"/>
-          </div>
-        </div>
-        <div id="keyField" class="form-row full" style="display:none">
-          <div class="field">
-            <label>Private Key (PEM) <span style="color:var(--red)">*</span></label>
-            <textarea id="f_key" rows="4" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----" style="resize:vertical;font-family:'DM Mono',monospace;font-size:11px"></textarea>
-          </div>
+          <div id="pwF" class="fd"><label>SSH Password *</label><input id="f_pass" type="password" placeholder="••••••••"></div>
+          <div id="keyF" class="fd" style="display:none"><label>Private Key Path</label><input id="f_key" type="text" placeholder="/home/user/.ssh/id_rsa"></div>
         </div>
       </div>
 
-      <div class="form-section" style="margin-bottom:0">
-        <div class="form-sec-label">⚙️ Auto-Maintenance Settings</div>
-        <div class="form-row">
-          <div class="field">
-            <label>Auto-update threshold</label>
-            <select id="f_autoupd">
-              <option value="all">All updates (auto)</option>
-              <option value="minor" selected>Minor only (ask for major)</option>
-              <option value="none">Ask me for everything</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Backup schedule</label>
-            <select id="f_backup">
-              <option value="daily" selected>Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="manual">Manual only</option>
-            </select>
-          </div>
-        </div>
+      <div class="tb" id="tb">
+        <div class="ts" id="ts1"><span class="tic">⏳</span>Connecting via SSH…</div>
+        <div class="ts" id="ts2" style="opacity:.25"><span class="tic">⏳</span>Verifying WordPress install…</div>
+        <div class="ts" id="ts3" style="opacity:.25"><span class="tic">⏳</span>Installing WP Agent plugin…</div>
+        <div class="ts" id="ts4" style="opacity:.25"><span class="tic">⏳</span>Generating app password…</div>
+        <div class="ts" id="ts5" style="opacity:.25"><span class="tic">⏳</span>Activating monitoring…</div>
       </div>
 
-      <div class="modal-actions" style="margin-top:20px">
-        <button class="modal-cancel" onclick="closeModal()">Cancel</button>
-        <button class="modal-submit" id="submitBtn" onclick="addSite()">
-          ⚡ Connect & Setup
-        </button>
+      <div class="ma">
+        <button class="mc" onclick="closeAdd()">Cancel</button>
+        <button class="msub" id="subBtn" onclick="addSite()">⚡ Connect & Setup</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Delete Confirm Modal ──────────────────── -->
-<div class="modal-overlay" id="deleteOverlay" onclick="outsideCloseDelete(event)">
-  <div class="confirm-modal">
-    <div class="confirm-icon">🗑</div>
-    <div class="confirm-title">Remove Website?</div>
-    <div class="confirm-text">
-      Are you sure you want to remove <span class="confirm-domain" id="delDomain"></span> from WP Agent? 
-      This will delete all credentials and monitoring data. Your actual site won't be affected.
-    </div>
-    <div class="confirm-actions">
-      <button class="confirm-cancel" onclick="closeDeleteModal()">Cancel</button>
-      <button class="confirm-del" onclick="confirmDelete()">Remove Site</button>
+<!-- ═════ DELETE MODAL ═════ -->
+<div class="ov" id="delOv" onclick="ooc(event,'delOv',closeDel)">
+  <div class="dm">
+    <div class="di">⚠️</div>
+    <div class="dt">Remove Website</div>
+    <div class="dd">Remove <strong id="delDom" style="color:var(--t1)"></strong> from WP Agent? All credentials and monitoring data will be permanently deleted.</div>
+    <div class="da">
+      <button class="dc" onclick="closeDel()">Cancel</button>
+      <button class="dx" onclick="doDel()">Remove Site</button>
     </div>
   </div>
 </div>
 
-<!-- ── Toast Container ────────────────────────── -->
-<div class="toast-wrap" id="toastWrap"></div>
+<div class="tw" id="tw"></div>
 
 <script>
-// ── State ──────────────────────────────────────
-let sites = [];
-let filter = 'all';
-let sortBy = 'name';
-let deleteTargetId = null;
-let sshMode = 'password';
+let sites=[], filt='all', sb='name', delId=null, sMode='password';
 
-// ── Sample/Demo Sites ─────────────────────────
-const DEMO_SITES = [
-  { id:'s1', domain:'jainamsilkmill.com', name:'Jainam Silk Mills', url:'https://jainamsilkmill.com', status:'online', wp:'6.9.4', php:'8.3.30', plugins:9, updates:3, loadTime:'13.8s', uptime:'N/A', lastCheck:'5 minutes ago', category:'client', addedAt: Date.now()-86400000*10 },
-  { id:'s2', domain:'give-back.org', name:'Give Back', url:'https://give-back.org', status:'warning', wp:'6.9.4', php:'8.3.30', plugins:13, updates:0, loadTime:'3.7s', uptime:'N/A', lastCheck:'4 minutes ago', category:'client', addedAt: Date.now()-86400000*8 },
-  { id:'s3', domain:'lisciobyapeksha.com', name:'Liscio by Apeksha', url:'https://lisciobyapeksha.com', status:'online', wp:'6.9.4', php:'8.2.30', plugins:16, updates:6, loadTime:'2.6s', uptime:'N/A', lastCheck:'4 minutes ago', category:'client', debugMode:true, addedAt: Date.now()-86400000*7 },
-  { id:'s4', domain:'sbandpartners.com', name:'SB & Partners', url:'https://sbandpartners.com', status:'warning', wp:'6.9.4', php:'8.2.30', plugins:9, updates:0, loadTime:'2.2s', uptime:'N/A', lastCheck:'4 minutes ago', category:'client', addedAt: Date.now()-86400000*6 },
-  { id:'s5', domain:'sqft.co.in', name:'SQFT', url:'https://sqft.co.in', status:'online', wp:'6.9.4', php:'8.2.30', plugins:13, updates:1, loadTime:'2.6s', uptime:'N/A', lastCheck:'1 minute ago', category:'client', addedAt: Date.now()-86400000*5 },
-  { id:'s6', domain:'dentathome.com', name:'Denta Home', url:'https://dentathome.com', status:'online', wp:'6.9.4', php:'8.3.30', plugins:12, updates:1, loadTime:'507ms', uptime:'N/A', lastCheck:'4 minutes ago', category:'client', addedAt: Date.now()-86400000*4 },
-  { id:'s7', domain:'aotp.in', name:'AOTP', url:'https://aotp.in', status:'warning', wp:'6.9.4', php:'8.2.30', plugins:8, updates:1, loadTime:'N/A', uptime:'N/A', lastCheck:'6 minutes ago', category:'client', addedAt: Date.now()-86400000*3 },
-  { id:'s8', domain:'gamyq.com', name:'GamyQ', url:'https://gamyq.com', status:'online', wp:'6.9.4', php:'8.3.30', plugins:4, updates:1, loadTime:'N/A', uptime:'N/A', lastCheck:'3 minutes ago', category:'client', addedAt: Date.now()-86400000*2 },
+const DEMO=[
+  {id:'s1',domain:'jainamsilkmill.com',name:'Jainam Silk Mills',url:'https://jainamsilkmill.com',status:'online',wp:'6.9.4',php:'8.3',plugins:9,updates:3,load:'13.8s',up:'99.2%',chk:'5m ago',cat:'client',at:Date.now()-864e5*10},
+  {id:'s2',domain:'give-back.org',name:'Give Back',url:'https://give-back.org',status:'warning',wp:'6.9.4',php:'8.3',plugins:13,updates:0,load:'3.7s',up:'98.1%',chk:'4m ago',cat:'client',at:Date.now()-864e5*8},
+  {id:'s3',domain:'lisciobyapeksha.com',name:'Liscio by Apeksha',url:'https://lisciobyapeksha.com',status:'online',wp:'6.9.4',php:'8.2',plugins:16,updates:6,load:'2.6s',up:'99.9%',chk:'4m ago',cat:'client',dbg:true,at:Date.now()-864e5*7},
+  {id:'s4',domain:'sbandpartners.com',name:'SB & Partners',url:'https://sbandpartners.com',status:'warning',wp:'6.9.4',php:'8.2',plugins:9,updates:0,load:'2.2s',up:'97.4%',chk:'4m ago',cat:'client',at:Date.now()-864e5*6},
+  {id:'s5',domain:'sqft.co.in',name:'SQFT',url:'https://sqft.co.in',status:'online',wp:'6.9.4',php:'8.2',plugins:13,updates:1,load:'2.6s',up:'99.9%',chk:'1m ago',cat:'client',at:Date.now()-864e5*5},
+  {id:'s6',domain:'dentathome.com',name:'Denta Home',url:'https://dentathome.com',status:'online',wp:'6.9.4',php:'8.3',plugins:12,updates:1,load:'507ms',up:'100%',chk:'4m ago',cat:'client',at:Date.now()-864e5*4},
+  {id:'s7',domain:'aotp.in',name:'AOTP',url:'https://aotp.in',status:'online',wp:'6.9.4',php:'8.2',plugins:8,updates:2,load:'2.1s',up:'99.9%',chk:'Just now',cat:'client',at:Date.now()-864e5*3},
+  {id:'s8',domain:'gamyq.com',name:'GamyQ',url:'https://gamyq.com',status:'online',wp:'6.9.4',php:'8.3',plugins:4,updates:1,load:'1.8s',up:'99.7%',chk:'3m ago',cat:'client',at:Date.now()-864e5*2},
 ];
 
-// ── Init ───────────────────────────────────────
-function init() {
-  const stored = localStorage.getItem('wpagent_sites');
-  sites = stored ? JSON.parse(stored) : [...DEMO_SITES];
-  renderAll();
-}
+function init(){const d=localStorage.getItem('wpa_sites');sites=d?JSON.parse(d):[...DEMO];renderAll()}
+function save(){localStorage.setItem('wpa_sites',JSON.stringify(sites))}
 
-function save() {
-  localStorage.setItem('wpagent_sites', JSON.stringify(sites));
-}
-
-// ── Render ─────────────────────────────────────
-function renderAll() {
-  updateStats();
+function renderAll(){
+  const on=sites.filter(s=>s.status==='online').length;
+  const up=sites.reduce((a,s)=>a+(s.updates||0),0);
+  const is=sites.filter(s=>s.status==='offline'||s.dbg).length;
+  document.getElementById('stOn').textContent=on;
+  document.getElementById('stUp').textContent=up;
+  document.getElementById('stIs').textContent=is;
+  document.getElementById('stTo').textContent=sites.length;
+  document.getElementById('sbCnt').textContent=sites.length;
+  document.getElementById('sbAlerts').textContent=is;
   renderGrid();
-  document.getElementById('siteCount').textContent = sites.length;
 }
 
-function updateStats() {
-  const online = sites.filter(s => s.status === 'online').length;
-  const updates = sites.reduce((a,s) => a + (s.updates||0), 0);
-  const issues = sites.filter(s => s.status === 'offline' || s.debugMode).length;
-  document.getElementById('statOnline').textContent = online;
-  document.getElementById('statUpdates').textContent = updates;
-  document.getElementById('statIssues').textContent = issues;
-  document.getElementById('statTotal').textContent = sites.length;
-  document.getElementById('alertCount').textContent = issues;
+function getList(){
+  const q=document.getElementById('searchInp').value.toLowerCase().trim();
+  let l=[...sites];
+  if(filt==='online') l=l.filter(s=>s.status==='online');
+  else if(filt==='updates') l=l.filter(s=>s.updates>0);
+  else if(filt==='issues') l=l.filter(s=>s.status==='offline'||s.dbg);
+  if(q) l=l.filter(s=>s.domain.toLowerCase().includes(q)||(s.name||'').toLowerCase().includes(q));
+  if(sb==='name') l.sort((a,b)=>a.domain.localeCompare(b.domain));
+  else if(sb==='status'){const o={online:0,warning:1,offline:2};l.sort((a,b)=>(o[a.status]||1)-(o[b.status]||1))}
+  else if(sb==='updates') l.sort((a,b)=>(b.updates||0)-(a.updates||0));
+  else if(sb==='added') l.sort((a,b)=>(b.at||0)-(a.at||0));
+  return l;
 }
 
-function getFiltered() {
-  const q = document.getElementById('searchInput').value.toLowerCase().trim();
-  let list = [...sites];
-
-  // Filter
-  if (filter === 'online') list = list.filter(s => s.status === 'online');
-  else if (filter === 'updates') list = list.filter(s => s.updates > 0);
-  else if (filter === 'issues') list = list.filter(s => s.status === 'offline' || s.debugMode);
-
-  // Search
-  if (q) list = list.filter(s => s.domain.toLowerCase().includes(q) || (s.name||'').toLowerCase().includes(q));
-
-  // Sort
-  if (sortBy === 'name') list.sort((a,b) => a.domain.localeCompare(b.domain));
-  else if (sortBy === 'status') list.sort((a,b) => {const o={online:0,warning:1,offline:2}; return (o[a.status]||1)-(o[b.status]||1);});
-  else if (sortBy === 'updates') list.sort((a,b) => (b.updates||0)-(a.updates||0));
-  else if (sortBy === 'added') list.sort((a,b) => (b.addedAt||0)-(a.addedAt||0));
-
-  return list;
-}
-
-function renderGrid() {
-  const list = getFiltered();
-  const grid = document.getElementById('sitesGrid');
-  document.getElementById('gridCount').textContent = `Showing ${list.length} website${list.length !== 1 ? 's' : ''}`;
-
-  if (list.length === 0) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
-      <div class="empty-icon">🌐</div>
-      <div class="empty-title">${sites.length === 0 ? 'No websites yet' : 'No matches found'}</div>
-      <div class="empty-sub">${sites.length === 0 ? 'Add your first WordPress site to get started' : 'Try a different search or filter'}</div>
-      ${sites.length === 0 ? '<button class="empty-btn" onclick="openModal()">+ Add Your First Website</button>' : ''}
+function renderGrid(){
+  const list=getList();
+  const g=document.getElementById('grid');
+  document.getElementById('gCount').textContent=`${list.length} website${list.length!==1?'s':''}`;
+  if(!list.length){
+    g.innerHTML=`<div class="empty">
+      <div class="empty-ic">${sites.length===0?'🌐':'🔍'}</div>
+      <div class="empty-t">${sites.length===0?'No websites yet':'No matches found'}</div>
+      <div class="empty-s">${sites.length===0?'Add your first WordPress site to get started':'Try a different search or filter'}</div>
+      ${sites.length===0?`<button class="ab" style="margin:0 auto" onclick="openAdd()">+ Add First Website</button>`:''}
     </div>`;
     return;
   }
-
-  grid.innerHTML = list.map(s => buildCard(s)).join('');
+  g.innerHTML=list.map(mkCard).join('');
 }
 
-function buildCard(s) {
-  const dotClass = s.status === 'online' ? 'online' : s.status === 'offline' ? 'offline' : 'warning';
-  const tags = [
-    `<span class="tag">WP ${s.wp||'—'}</span>`,
-    `<span class="tag">PHP ${s.php||'—'}</span>`,
-    s.plugins ? `<span class="tag">🔌 ${s.plugins}</span>` : '',
-    s.updates > 0 ? `<span class="tag update">⬆ ${s.updates} update${s.updates>1?'s':''}</span>` : '',
-    s.debugMode ? `<span class="tag debug">⚠ Debug off</span>` : '',
-    s.status === 'online' && !s.updates && !s.debugMode ? `<span class="tag ok">✓ Healthy</span>` : '',
+function mkCard(s){
+  const dc=s.status==='online'?'on':s.status==='offline'?'of':'wa';
+  const tags=[
+    `<span class="tg">WP ${s.wp||'—'}</span>`,
+    `<span class="tg">PHP ${s.php||'—'}</span>`,
+    s.plugins?`<span class="tg">🔌 ${s.plugins}</span>`:'',
+    s.updates>0?`<span class="tg upd">⬆ ${s.updates} update${s.updates>1?'s':''}</span>`:'',
+    s.dbg?`<span class="tg dbg">⚠ Debug on</span>`:'',
+    (s.status==='online'&&!s.updates&&!s.dbg)?`<span class="tg ok">✓ Healthy</span>`:'',
   ].filter(Boolean).join('');
-
-  const loadDisplay = s.loadTime && s.loadTime !== 'N/A' ? s.loadTime : '—';
-  const uptimeDisplay = s.uptime && s.uptime !== 'N/A' ? s.uptime : 'N/A';
-
-  return `<div class="card" id="card-${s.id}" onclick="goToChat('${s.id}')">
-    <div class="card-top">
-      <div class="card-site">
-        <div class="status-dot ${dotClass}"></div>
-        <div class="site-name-wrap">
-          <div class="site-domain">${esc(s.domain)} <span class="ext-icon">↗</span></div>
-          <div class="site-label">${esc(s.name||s.domain)} · ${esc(s.category||'client')}</div>
+  return `<div class="card" id="card-${esc(s.id)}" onclick="goChat('${esc(s.id)}')">
+    <div class="ci">
+      <div class="ct">
+        <div class="si">
+          <div class="dot ${dc}"></div>
+          <div>
+            <div class="sd">${esc(s.domain)}</div>
+            <div class="sm">${esc(s.name||s.domain)} · ${esc(s.cat||'client')}</div>
+          </div>
+        </div>
+        <div class="acts" onclick="event.stopPropagation()">
+          <span class="ac sky" title="WP Dashboard" onclick="goDash('${esc(s.id)}')">⊞</span>
+          <span class="ac pur" title="AI Agent Chat" onclick="goChat('${esc(s.id)}')">✦</span>
+          <a class="ac blue" href="${esc(s.url)}" target="_blank" rel="noopener" title="Visit Site" onclick="event.stopPropagation()">↗</a>
+          <span class="ac rose" title="Remove" onclick="openDel('${esc(s.id)}','${esc(s.domain)}')">🗑</span>
         </div>
       </div>
-      <div class="card-actions" onclick="event.stopPropagation()">
-        <span class="ca teal" title="Dashboard" onclick="showToast('Opening dashboard for ${esc(s.domain)}…','📊')">⊞</span>
-        <span class="ca purple" title="AI Agent" onclick="goToChat('${s.id}')">✦</span>
-        <a class="ca blue" href="${esc(s.url)}" target="_blank" rel="noopener" title="Visit site" onclick="event.stopPropagation()">→</a>
-        <span class="ca red" title="Remove site" onclick="deleteSite('${s.id}','${esc(s.domain)}')">🗑</span>
-      </div>
+      <div class="tags">${tags}</div>
     </div>
-    <div class="card-tags">${tags}</div>
-    <div class="card-meta">
-      <span class="meta-item"><span class="meta-icon">⚡</span> ${esc(loadDisplay)}</span>
-      <span class="meta-item"><span class="meta-icon">↺</span> ${esc(uptimeDisplay)}</span>
-      <span class="meta-item" style="margin-left:auto"><span class="meta-icon">🕐</span> ${esc(s.lastCheck||'—')}</span>
+    <div class="cf">
+      <span><span class="fi">⚡</span>${esc(s.load||'—')}</span>
+      <span><span class="fi">↺</span>${esc(s.up||'—')}</span>
+      <span><span class="fi">🕐</span>${esc(s.chk||'—')}</span>
     </div>
   </div>`;
 }
 
-// ── Actions ────────────────────────────────────
-function goToChat(id) {
-  const site = sites.find(s => s.id === id);
-  if (!site) return;
-  // Store selected site, go to chat
-  localStorage.setItem('wpagent_activeSite', id);
-  window.location.href = `index.html?site=${id}`;
+function goChat(id){
+  localStorage.setItem('wpa_site',id);
+  localStorage.setItem('wpa_sites',JSON.stringify(sites));
+  window.location.href=`index.html?site=${id}`;
 }
 
-function filterSites() { renderGrid(); }
-
-function setFilter(f, btn) {
-  filter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderGrid();
+function goDash(id){
+  const s=sites.find(x=>x.id===id);
+  if(!s) return;
+  window.open(s.url.replace(/\/$/,'')+'/wp-admin/','_blank','noopener');
+  toast('Opening WP Dashboard…','⊞');
 }
 
-function sortSites(val) {
-  sortBy = val;
-  renderGrid();
+function setF(f,btn){filt=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGrid()}
+
+// Add site
+function openAdd(){document.getElementById('addOv').classList.add('open');document.getElementById('f_url').focus()}
+function closeAdd(){document.getElementById('addOv').classList.remove('open');resetF()}
+function ooc(e,id,fn){if(e.target===document.getElementById(id))fn()}
+
+function setM(m,btn){
+  sMode=m;
+  document.querySelectorAll('.to').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  document.getElementById('pwF').style.display=m==='password'?'':'none';
+  document.getElementById('keyF').style.display=m==='key'?'':'none';
 }
 
-// ── Add Modal ──────────────────────────────────
-function openModal() {
-  document.getElementById('modalOverlay').classList.add('open');
-  document.getElementById('f_url').focus();
-}
-
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-  resetForm();
-}
-
-function outsideClose(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
-}
-
-function setSshMode(mode, btn) {
-  sshMode = mode;
-  document.querySelectorAll('.toggle-opt').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('passField').style.display = mode === 'password' ? '' : 'none';
-  document.getElementById('keyField').style.display = mode === 'key' ? '' : 'none';
-}
-
-function resetForm() {
-  ['f_url','f_name','f_host','f_pass','f_key','f_user'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+function resetF(){
+  ['f_url','f_name','f_host','f_pass','f_key','f_user'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  document.getElementById('f_port').value='22';
+  document.getElementById('tb').classList.remove('show');
+  setM('password',document.getElementById('mPw'));
+  const b=document.getElementById('subBtn');b.disabled=false;b.textContent='⚡ Connect & Setup';
+  ['ts1','ts2','ts3','ts4','ts5'].forEach((id,i)=>{
+    const el=document.getElementById(id);el.className='ts';el.style.opacity=i===0?'1':'.25';
+    const texts=['Connecting via SSH…','Verifying WordPress install…','Installing WP Agent plugin…','Generating app password…','Activating monitoring…'];
+    el.innerHTML=`<span class="tic">⏳</span>${texts[i]}`;
   });
-  document.getElementById('f_port').value = '22';
-  setSshMode('password', document.getElementById('modePass'));
 }
 
-function addSite() {
-  const url = document.getElementById('f_url').value.trim();
-  const host = document.getElementById('f_host').value.trim();
-  const user = document.getElementById('f_user').value.trim();
-  const pass = sshMode === 'password' ? document.getElementById('f_pass').value.trim() : '';
-  const key = sshMode === 'key' ? document.getElementById('f_key').value.trim() : '';
-
-  if (!url || !host || !user || (!pass && !key)) {
-    showToast('Please fill in all required fields','⚠️', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Connecting…';
-
-  // Simulate connection
-  setTimeout(() => {
-    const domain = url.replace(/https?:\/\//,'').replace(/\//,'').toLowerCase();
-    const name = document.getElementById('f_name').value.trim() || domain;
-    const cat = document.getElementById('f_cat').value || 'client';
-
-    const newSite = {
-      id: 's' + Date.now(),
-      domain, name, url,
-      status: 'online',
-      wp: '6.9.4',
-      php: '8.2.30',
-      plugins: Math.floor(Math.random() * 15) + 5,
-      updates: Math.floor(Math.random() * 4),
-      loadTime: (Math.random() * 3 + 0.5).toFixed(1) + 's',
-      uptime: '99.9%',
-      lastCheck: 'Just now',
-      category: cat,
-      addedAt: Date.now()
-    };
-
-    sites.unshift(newSite);
-    save();
-    renderAll();
-    closeModal();
-    btn.disabled = false;
-    btn.textContent = '⚡ Connect & Setup';
-    showToast(`${domain} connected successfully!`, '✅');
-
-    // Highlight new card briefly
-    setTimeout(() => {
-      const card = document.getElementById(`card-${newSite.id}`);
-      if (card) { card.style.borderColor = 'rgba(34,197,94,0.5)'; setTimeout(()=>card.style.borderColor='',2000); }
-    }, 100);
-  }, 1800);
+function setStep(n,state,msg){
+  const el=document.getElementById('ts'+n);el.style.opacity='1';
+  const ic={run:'<span class="tic tspin">⟳</span>',ok:'<span class="tic">✅</span>',fail:'<span class="tic">❌</span>'};
+  el.className='ts '+(state==='run'?'run':state==='ok'?'ok':'fail');
+  el.innerHTML=(ic[state]||'<span class="tic">⏳</span>')+' '+msg;
 }
 
-// ── Delete ─────────────────────────────────────
-function deleteSite(id, domain) {
-  deleteTargetId = id;
-  document.getElementById('delDomain').textContent = domain;
-  document.getElementById('deleteOverlay').classList.add('open');
+function addSite(){
+  const url=document.getElementById('f_url').value.trim();
+  const host=document.getElementById('f_host').value.trim();
+  const user=document.getElementById('f_user').value.trim();
+  const pass=sMode==='password'?document.getElementById('f_pass').value.trim():'';
+  const key=sMode==='key'?document.getElementById('f_key').value.trim():'';
+  if(!url||!host||!user||(!pass&&!key)){toast('Please fill all required fields','⚠️','err');return}
+
+  const btn=document.getElementById('subBtn');btn.disabled=true;btn.textContent='⏳ Connecting…';
+  document.getElementById('tb').classList.add('show');
+
+  const steps=[
+    [1,'run','Connecting via SSH…'],[1,'ok','SSH connection established ✓'],
+    [2,'run','Verifying WordPress install…'],[2,'ok','WordPress 6.9.4 detected ✓'],
+    [3,'run','Installing WP Agent plugin…'],[3,'ok','Plugin installed & activated ✓'],
+    [4,'run','Generating app password…'],[4,'ok','App password created ✓'],
+    [5,'run','Activating monitoring…'],[5,'ok','Monitoring active — all systems go ✓'],
+  ];
+  let i=0;
+  const run=()=>{
+    if(i>=steps.length){
+      const domain=url.replace(/https?:\/\//,'').replace(/\/.*$/,'').toLowerCase();
+      const name=document.getElementById('f_name').value.trim()||domain;
+      const cat=document.getElementById('f_cat').value||'client';
+      const ns={id:'s'+Date.now(),domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
+        plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
+        load:(Math.random()*2+0.5).toFixed(1)+'s',up:'99.9%',chk:'Just now',cat,at:Date.now()};
+      sites.unshift(ns);save();renderAll();
+      setTimeout(()=>{closeAdd();toast(`${domain} connected & ready!`,'✅');
+        setTimeout(()=>{const c=document.getElementById('card-'+ns.id);
+          if(c){c.style.borderColor='rgba(16,217,160,.45)';setTimeout(()=>c.style.borderColor='',2500)}},100);
+      },700);
+      return;
+    }
+    const [n,s,m]=steps[i++];setStep(n,s,m);setTimeout(run,s==='run'?550:180);
+  };
+  setTimeout(run,350);
 }
 
-function closeDeleteModal() {
-  document.getElementById('deleteOverlay').classList.remove('open');
-  deleteTargetId = null;
-}
+// Delete
+function openDel(id,dom){delId=id;document.getElementById('delDom').textContent=dom;document.getElementById('delOv').classList.add('open')}
+function closeDel(){document.getElementById('delOv').classList.remove('open');delId=null}
+function doDel(){if(!delId)return;const s=sites.find(x=>x.id===delId);sites=sites.filter(x=>x.id!==delId);save();renderAll();closeDel();if(s)toast(`${s.domain} removed`,'🗑')}
 
-function outsideCloseDelete(e) {
-  if (e.target === document.getElementById('deleteOverlay')) closeDeleteModal();
+// Toast
+function toast(msg,ic='ℹ️',type='ok'){
+  const w=document.getElementById('tw');const t=document.createElement('div');
+  t.className=`toast ${type}`;t.innerHTML=`<span>${ic}</span><span>${msg}</span>`;
+  w.appendChild(t);
+  setTimeout(()=>{t.style.animation='tout .22s ease forwards';setTimeout(()=>t.remove(),220)},3200);
 }
+function nt(m){toast(m,'💡')}
 
-function confirmDelete() {
-  if (!deleteTargetId) return;
-  const site = sites.find(s => s.id === deleteTargetId);
-  sites = sites.filter(s => s.id !== deleteTargetId);
-  save();
-  renderAll();
-  closeDeleteModal();
-  if (site) showToast(`${site.domain} removed`, '🗑');
-}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-// ── Toast ──────────────────────────────────────
-function showToast(msg, icon='ℹ️', type='success') {
-  const wrap = document.getElementById('toastWrap');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
-  wrap.appendChild(t);
-  setTimeout(() => {
-    t.style.animation = 'fadeOut 0.3s ease forwards';
-    setTimeout(() => t.remove(), 300);
-  }, 3000);
-}
-
-// ── Helpers ────────────────────────────────────
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Keyboard shortcuts ─────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closeDeleteModal(); }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'n') { e.preventDefault(); openModal(); }
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeAdd();closeDel()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('searchInp').focus()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='n'){e.preventDefault();openAdd()}
 });
-
-// ── Boot ───────────────────────────────────────
 init();
 </script>
 </body>
