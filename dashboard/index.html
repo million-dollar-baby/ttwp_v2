@@ -600,6 +600,8 @@ let sites=[], filt='all', sb='name', delId=null, sMode='password';
 let curView='sites', activeChatSite=null;
 let alerts=[], taskLog=[];
 let socket=null, chatStreaming=false, streamEl=null;
+let chatSiteLoaded=false; // true after chat:setup_status received
+let msgBuffer=[]; // buffer messages received before site is loaded
 
 const DEMO=[
   {id:'s1',domain:'jainamsilkmill.com',name:'Jainam Silk Mills',url:'https://jainamsilkmill.com',status:'online',wp:'6.9.4',php:'8.3',plugins:9,updates:3,load:'13.8s',up:'99.2%',chk:'5m ago',cat:'client',at:Date.now()-864e5*10},
@@ -725,32 +727,41 @@ function connectSocket(){
 
     // ── Chat events ──
     socket.on('chat:typing',(typing)=>{
+      if(!chatSiteLoaded) return; // ignore before site loads
       if(typing) showTyping(); else hideTyping();
     });
     socket.on('chat:chunk',({text})=>{
+      if(!chatSiteLoaded) return;
       hideTyping();
-      if(!streamEl){
-        streamEl=appendMsg('ai','');
-      }
+      if(!streamEl) streamEl=appendMsg('ai','');
       appendToStream(streamEl, text);
       scrollChat();
     });
     socket.on('chat:message',(msg)=>{
+      // Buffer messages until site is confirmed loaded
+      if(!chatSiteLoaded && activeChatSite){
+        msgBuffer.push(msg);
+        return;
+      }
       streamEl=null;
       hideTyping();
       if(msg && msg.content){
-        const txt=Array.isArray(msg.content)
+        const raw=Array.isArray(msg.content)
           ? msg.content.filter(b=>b.type==='text').map(b=>b.text).join('\n')
           : String(msg.content);
-        appendMsg(msg.role||'ai', txt, msg.type);
+        // Also handle actions array (chip links etc.)
+        const chips=(msg.actions||[]).filter(a=>a.type==='chip');
+        appendMsg(msg.role||'ai', raw, msg.type, chips);
       }
       setChatSending(false);
       scrollChat();
     });
     socket.on('chat:status',({text})=>{
+      if(!chatSiteLoaded) return;
       appendSysMsg(text);
     });
     socket.on('chat:agent_log',(entry)=>{
+      if(!chatSiteLoaded) return;
       const txt=entry.tool||entry.message||JSON.stringify(entry).slice(0,80);
       const el=document.createElement('div');
       el.className='step-row run';
@@ -759,6 +770,7 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:step_done',(data)=>{
+      if(!chatSiteLoaded) return;
       const el=document.createElement('div');
       el.className='step-row ok';
       el.innerHTML=`<span>✓</span><span>${esc(data.tool||data.message||'Done')}</span>`;
@@ -766,6 +778,7 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:approval_request',(data)=>{
+      if(!chatSiteLoaded) return;
       const el=document.createElement('div');
       el.className='approval-card';
       el.innerHTML=`
@@ -779,13 +792,28 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:error',({message})=>{
+      if(!chatSiteLoaded) return;
       appendMsg('ai','⚠ '+message,'error');
       setChatSending(false);
     });
     socket.on('chat:setup_status',(data)=>{
-      if(!data.complete){
-        appendSysMsg('This site needs to be connected first — use the Connect & Setup flow.');
+      chatSiteLoaded=true; // Site status received — now show messages
+      msgBuffer=[]; // Discard buffered onboarding messages
+      hideTyping();
+      if(data.complete){
+        // Site is connected — show agent welcome
+        const s=activeChatSite;
+        if(s) appendMsg('ai', buildWelcome(s));
+      } else if(data.needsRegister){
+        // Site not registered in backend yet
+        appendMsg('ai',
+          `⚠ **Site not fully registered**\n\nSSH credentials were saved, but the backend couldn't find the connection for **${activeChatSite?.domain||'this site'}**.\n\nTry removing the site and re-adding it using the **+ Add Website** button — the agent will re-run the SSH setup and register it properly.`
+        );
+      } else {
+        appendMsg('ai', buildWelcome(activeChatSite));
       }
+      setChatSending(false);
+      scrollChat();
     });
   } catch(e){
     // No socket server available (static preview mode)
@@ -942,6 +970,8 @@ function _doOpenChat(siteId){
   const s=sites.find(x=>x.id===siteId);
   if(!s) return;
   activeChatSite=s;
+  chatSiteLoaded=false; // Reset — wait for setup_status
+  msgBuffer=[];
 
   // Update chat header
   const dc=s.status==='online'?'on':'wa';
@@ -958,18 +988,32 @@ function _doOpenChat(siteId){
       ${s.updates>0?`<span class="chip" style="color:var(--amber)">⬆ ${s.updates} updates</span>`:''}
     </div>`;
 
-  // Clear messages
+  // Clear messages and show connecting state
   const msgs=document.getElementById('chatMsgs');
   msgs.innerHTML='';
   streamEl=null;
 
-  // Load site into socket session
   if(socket && socket.connected){
+    // Show connecting indicator
+    appendSysMsg('Connecting agent to '+s.domain+'…');
+    showTyping();
     socket.emit('chat:load_site',{siteId:s.id});
+    // Fallback: if no setup_status in 5s, go offline mode
+    setTimeout(()=>{
+      if(!chatSiteLoaded){
+        chatSiteLoaded=true;
+        msgBuffer=[];
+        hideTyping();
+        // Clear connecting message and show welcome
+        msgs.innerHTML='';
+        appendMsg('ai', buildWelcome(s));
+        scrollChat();
+      }
+    }, 5000);
   } else {
-    // Offline welcome
-    const wl=buildWelcome(s);
-    appendMsg('ai', wl);
+    // Offline mode — show welcome immediately
+    chatSiteLoaded=true;
+    appendMsg('ai', buildWelcome(s));
   }
 
   // Focus input
@@ -1072,7 +1116,7 @@ function scrollChat(){
   if(el) el.scrollTop=el.scrollHeight;
 }
 
-function appendMsg(role, text, type){
+function appendMsg(role, text, type, chips){
   const msgs=document.getElementById('chatMsgs');
   if(!msgs) return null;
   const row=document.createElement('div');
@@ -1084,15 +1128,49 @@ function appendMsg(role, text, type){
   bub.className='msg-bub';
   if(type==='error') bub.style.borderColor='rgba(244,63,94,.3)';
   bub.innerHTML=mdToHtml(text);
+  // Render chip actions (clickable URL buttons)
+  if(chips && chips.length){
+    const chipWrap=document.createElement('div');
+    chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:8px';
+    chips.forEach(c=>{
+      const a=document.createElement('a');
+      a.href=c.value||'#';a.target='_blank';a.rel='noopener';
+      a.style.cssText='background:var(--bg4);border:1px solid var(--b3);color:var(--sky);border-radius:5px;padding:3px 9px;font-size:11px;text-decoration:none;font-family:JetBrains Mono,monospace';
+      a.textContent='↗ '+c.value;
+      chipWrap.appendChild(a);
+    });
+    bub.appendChild(chipWrap);
+  }
   row.appendChild(av);
   row.appendChild(bub);
   msgs.appendChild(row);
   return bub;
 }
+
+function mdToHtml(txt){
+  if(!txt) return '';
+  // Strip backend-specific action tags from text
+  txt=txt
+    .replace(/\[CHIP\s+[^\]]+\]/g,'')
+    .replace(/\[RUN_TASK\s+[^\]]+\]/g,'')
+    .replace(/\[SAVE\s+[^\]]+\]/g,'')
+    .replace(/\[TEST_WP\]/g,'')
+    .replace(/\[TEST_SSH\]/g,'')
+    .replace(/\[SETUP_COMPLETE\]/g,'')
+    .replace(/\[LINK\s+([^\|]+)\|([^\]]+)\]/g,'<a href="$2" target="_blank" style="color:var(--sky)">$1</a>');
+  // Markdown-like formatting
+  return txt
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\[LINK\s+([^\|]+)\|([^\]]+)\]/g,'<a href="$2" target="_blank" style="color:var(--sky)">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
 function appendToStream(el, text){
   if(!el) return;
-  el.innerHTML=mdToHtml((el._raw||'')+text);
   el._raw=(el._raw||'')+text;
+  el.innerHTML=mdToHtml(el._raw);
 }
 function appendSysMsg(text){
   const msgs=document.getElementById('chatMsgs');
@@ -1107,31 +1185,15 @@ function showTyping(){
   const msgs=document.getElementById('chatMsgs');
   if(!msgs||document.getElementById('typing-ind')) return;
   const ind=document.createElement('div');
-  ind.id='typing-ind';
-  ind.className='typing-ind';
+  ind.id='typing-ind';ind.className='typing-ind';
   ind.innerHTML='<span></span><span></span><span></span>';
-  msgs.appendChild(ind);
-  scrollChat();
+  msgs.appendChild(ind);scrollChat();
 }
-function hideTyping(){
-  const ind=document.getElementById('typing-ind');
-  if(ind) ind.remove();
-}
-function approveAction(id, approved, card){
+function hideTyping(){ const ind=document.getElementById('typing-ind');if(ind)ind.remove(); }
+function approveAction(id,approved,card){
   if(socket) socket.emit('chat:approve',{id,approved});
-  if(card){
-    card.innerHTML=`<div style="font-size:12px;color:${approved?'var(--emerald)':'var(--rose)'}">
-      ${approved?'✓ Approved — agent is proceeding':'✕ Declined — action cancelled'}</div>`;
-  }
-}
-
-function mdToHtml(txt){
-  if(!txt) return '';
-  return txt
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\n/g,'<br>');
+  if(card) card.innerHTML=`<div style="font-size:12px;color:${approved?'var(--emerald)':'var(--rose)'}">
+    ${approved?'✓ Approved — agent proceeding':'✕ Declined — action cancelled'}</div>`;
 }
 
 /* ════════════════════════════════════════════
