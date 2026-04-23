@@ -406,6 +406,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
   <div class="topbar" id="tb-chat" style="display:none">
     <button class="chat-back" onclick="showView('sites')">← All Sites</button>
     <div id="chat-site-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden"></div>
+    <button class="fb" onclick="openWpCreds()" title="Update WordPress Application Password" style="font-size:11px;white-space:nowrap">🔑 WP Credentials</button>
   </div>
 
   <!-- ── Topbar (Generic) ── -->
@@ -562,6 +563,17 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
           <div id="keyF" class="fd" style="display:none"><label>Private Key Path</label><input id="f_key" type="text" placeholder="/home/user/.ssh/id_rsa"></div>
         </div>
       </div>
+
+      <div class="fsec">
+        <div class="fl">WordPress Credentials</div>
+        <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:8px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:10px;line-height:1.6">
+          ⚡ <strong>Required for AI agent</strong> — Go to WP Admin → Users → Profile → Application Passwords → Add New. Enter any name and copy the generated password.
+        </div>
+        <div class="fr">
+          <div class="fd"><label>WP Admin Username *</label><input id="f_wpuser" type="text" placeholder="admin"></div>
+          <div class="fd"><label>Application Password *</label><input id="f_wppass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
+        </div>
+      </div>
       <div class="tb" id="setupTb">
         <div class="ts" id="ts1"><span class="tic">⏳</span>Connecting via SSH…</div>
         <div class="ts" id="ts2" style="opacity:.25"><span class="tic">⏳</span>Verifying WordPress install…</div>
@@ -572,6 +584,34 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
       <div class="ma">
         <button class="mc" onclick="closeAdd()">Cancel</button>
         <button class="msub" id="subBtn" onclick="addSite()">⚡ Connect & Setup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ WP CREDENTIALS MODAL ═════ -->
+<div class="ov" id="wpCredsOv" onclick="ooc(event,'wpCredsOv',closeWpCreds)">
+  <div class="modal" style="width:420px">
+    <div class="mh">
+      <div>
+        <div class="mt">WordPress Credentials</div>
+        <div class="ms" id="wpCredsSubtitle">Update WP App Password for this site</div>
+      </div>
+      <button class="mx" onclick="closeWpCreds()">✕</button>
+    </div>
+    <div class="mb">
+      <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:9px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:14px;line-height:1.7">
+        ⚡ WP Admin → <strong>Users → Profile → Application Passwords</strong> → Add New → copy the password here
+      </div>
+      <div class="fsec">
+        <div class="fr">
+          <div class="fd"><label>WP Admin Username</label><input id="wc_user" type="text" placeholder="admin"></div>
+          <div class="fd"><label>Application Password</label><input id="wc_pass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
+        </div>
+      </div>
+      <div class="ma">
+        <button class="mc" onclick="closeWpCreds()">Cancel</button>
+        <button class="msub" onclick="saveWpCreds()">💾 Save & Reconnect</button>
       </div>
     </div>
   </div>
@@ -1357,7 +1397,7 @@ function setM(m,btn){
   document.getElementById('keyF').style.display=m==='key'?'':'none';
 }
 function resetF(){
-  ['f_url','f_name','f_host','f_pass','f_key','f_user'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  ['f_url','f_name','f_host','f_pass','f_key','f_user','f_wpuser','f_wppass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('f_port').value='22';
   document.getElementById('setupTb').classList.remove('show');
   setM('password',document.getElementById('mPw'));
@@ -1381,7 +1421,10 @@ function addSite(){
   const port=document.getElementById('f_port').value.trim()||'22';
   const pass=sMode==='password'?document.getElementById('f_pass').value.trim():'';
   const key=sMode==='key'?document.getElementById('f_key').value.trim():'';
+  const wpUser=document.getElementById('f_wpuser').value.trim()||'admin';
+  const wpAppPassword=document.getElementById('f_wppass').value.trim();
   if(!url||!host||!user||(!pass&&!key)){toast('Please fill all required fields','⚠️','err');return}
+  if(!wpAppPassword){toast('WordPress Application Password required for AI agent','⚠️','err');return}
   const btn=document.getElementById('subBtn');btn.disabled=true;btn.textContent='⏳ Connecting…';
   document.getElementById('setupTb').classList.add('show');
   const steps=[
@@ -1399,7 +1442,7 @@ function addSite(){
   const run=()=>{
     if(i>=steps.length){
       fetch('/api/sites/register',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id:siteId,url,name,domain,cat,sshHost:host,sshPort:parseInt(port),sshUser:user,sshPassword:pass,sshKeyPath:key})
+        body:JSON.stringify({id:siteId,url,name,domain,cat,sshHost:host,sshPort:parseInt(port),sshUser:user,sshPassword:pass,sshKeyPath:key,wpUser,wpAppPassword})
       }).catch(()=>{});
       const ns={id:siteId,domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
         plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
@@ -1417,6 +1460,57 @@ function addSite(){
     const [n,s,m]=steps[i++];setStep(n,s,m);setTimeout(run,s==='run'?550:180);
   };
   setTimeout(run,350);
+}
+
+function openWpCreds(){
+  if(!activeChatSite) return;
+  document.getElementById('wpCredsSubtitle').textContent=activeChatSite.domain;
+  document.getElementById('wc_user').value=activeChatSite.wpUser||'admin';
+  document.getElementById('wc_pass').value='';
+  document.getElementById('wpCredsOv').classList.add('open');
+  setTimeout(()=>document.getElementById('wc_pass').focus(),100);
+}
+function closeWpCreds(){ document.getElementById('wpCredsOv').classList.remove('open'); }
+function saveWpCreds(){
+  const s=activeChatSite;
+  if(!s) return;
+  const wpUser=document.getElementById('wc_user').value.trim()||'admin';
+  const wpAppPassword=document.getElementById('wc_pass').value.trim();
+  if(!wpAppPassword){ toast('Application Password required','⚠️','err'); return; }
+
+  // Save to site object
+  s.wpUser=wpUser;
+  s.wpAppPassword=wpAppPassword;
+  save();
+
+  // Update backend
+  fetch('/api/sites/register',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      id:s.id, url:s.url, name:s.name, domain:s.domain, cat:s.cat,
+      sshHost:s.sshHost||'', sshUser:s.sshUser||'', sshPort:s.sshPort||22,
+      sshPassword:s.sshPassword||'', wpUser, wpAppPassword, setupComplete:true
+    })
+  }).then(()=>{
+    closeWpCreds();
+    toast('Credentials saved — reconnecting agent…','✅');
+    // Reload the chat with new credentials
+    setTimeout(()=>{
+      chatSiteLoaded=false; msgBuffer=[];
+      document.getElementById('chatMsgs').innerHTML='';
+      if(socket && socket.connected){
+        appendSysMsg('Reconnecting with updated credentials…');
+        showTyping();
+        socket.emit('chat:load_site',{siteId:s.id});
+      } else {
+        chatSiteLoaded=true;
+        appendMsg('ai', buildWelcome(s));
+      }
+    }, 500);
+  }).catch(()=>{
+    closeWpCreds();
+    toast('Credentials saved locally','✅');
+  });
 }
 
 function openDel(id,dom){ delId=id;document.getElementById('delDom').textContent=dom;document.getElementById('delOv').classList.add('open'); }
