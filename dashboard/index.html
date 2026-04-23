@@ -406,7 +406,6 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
   <div class="topbar" id="tb-chat" style="display:none">
     <button class="chat-back" onclick="showView('sites')">← All Sites</button>
     <div id="chat-site-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden"></div>
-    <button class="fb" onclick="openWpCreds()" title="Update WordPress Application Password" style="font-size:11px;white-space:nowrap">🔑 WP Credentials</button>
   </div>
 
   <!-- ── Topbar (Generic) ── -->
@@ -563,17 +562,6 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
           <div id="keyF" class="fd" style="display:none"><label>Private Key Path</label><input id="f_key" type="text" placeholder="/home/user/.ssh/id_rsa"></div>
         </div>
       </div>
-
-      <div class="fsec">
-        <div class="fl">WordPress Credentials</div>
-        <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:8px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:10px;line-height:1.6">
-          ⚡ <strong>Required for AI agent</strong> — Go to WP Admin → Users → Profile → Application Passwords → Add New. Enter any name and copy the generated password.
-        </div>
-        <div class="fr">
-          <div class="fd"><label>WP Admin Username *</label><input id="f_wpuser" type="text" placeholder="admin"></div>
-          <div class="fd"><label>Application Password *</label><input id="f_wppass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
-        </div>
-      </div>
       <div class="tb" id="setupTb">
         <div class="ts" id="ts1"><span class="tic">⏳</span>Connecting via SSH…</div>
         <div class="ts" id="ts2" style="opacity:.25"><span class="tic">⏳</span>Verifying WordPress install…</div>
@@ -584,34 +572,6 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
       <div class="ma">
         <button class="mc" onclick="closeAdd()">Cancel</button>
         <button class="msub" id="subBtn" onclick="addSite()">⚡ Connect & Setup</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═════ WP CREDENTIALS MODAL ═════ -->
-<div class="ov" id="wpCredsOv" onclick="ooc(event,'wpCredsOv',closeWpCreds)">
-  <div class="modal" style="width:420px">
-    <div class="mh">
-      <div>
-        <div class="mt">WordPress Credentials</div>
-        <div class="ms" id="wpCredsSubtitle">Update WP App Password for this site</div>
-      </div>
-      <button class="mx" onclick="closeWpCreds()">✕</button>
-    </div>
-    <div class="mb">
-      <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:9px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:14px;line-height:1.7">
-        ⚡ WP Admin → <strong>Users → Profile → Application Passwords</strong> → Add New → copy the password here
-      </div>
-      <div class="fsec">
-        <div class="fr">
-          <div class="fd"><label>WP Admin Username</label><input id="wc_user" type="text" placeholder="admin"></div>
-          <div class="fd"><label>Application Password</label><input id="wc_pass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
-        </div>
-      </div>
-      <div class="ma">
-        <button class="mc" onclick="closeWpCreds()">Cancel</button>
-        <button class="msub" onclick="saveWpCreds()">💾 Save & Reconnect</button>
       </div>
     </div>
   </div>
@@ -640,8 +600,6 @@ let sites=[], filt='all', sb='name', delId=null, sMode='password';
 let curView='sites', activeChatSite=null;
 let alerts=[], taskLog=[];
 let socket=null, chatStreaming=false, streamEl=null;
-let chatSiteLoaded=false; // true after chat:setup_status received
-let msgBuffer=[]; // buffer messages received before site is loaded
 
 const DEMO=[
   {id:'s1',domain:'jainamsilkmill.com',name:'Jainam Silk Mills',url:'https://jainamsilkmill.com',status:'online',wp:'6.9.4',php:'8.3',plugins:9,updates:3,load:'13.8s',up:'99.2%',chk:'5m ago',cat:'client',at:Date.now()-864e5*10},
@@ -767,41 +725,32 @@ function connectSocket(){
 
     // ── Chat events ──
     socket.on('chat:typing',(typing)=>{
-      if(!chatSiteLoaded) return; // ignore before site loads
       if(typing) showTyping(); else hideTyping();
     });
     socket.on('chat:chunk',({text})=>{
-      if(!chatSiteLoaded) return;
       hideTyping();
-      if(!streamEl) streamEl=appendMsg('ai','');
+      if(!streamEl){
+        streamEl=appendMsg('ai','');
+      }
       appendToStream(streamEl, text);
       scrollChat();
     });
     socket.on('chat:message',(msg)=>{
-      // Buffer messages until site is confirmed loaded
-      if(!chatSiteLoaded && activeChatSite){
-        msgBuffer.push(msg);
-        return;
-      }
       streamEl=null;
       hideTyping();
       if(msg && msg.content){
-        const raw=Array.isArray(msg.content)
+        const txt=Array.isArray(msg.content)
           ? msg.content.filter(b=>b.type==='text').map(b=>b.text).join('\n')
           : String(msg.content);
-        // Also handle actions array (chip links etc.)
-        const chips=(msg.actions||[]).filter(a=>a.type==='chip');
-        appendMsg(msg.role||'ai', raw, msg.type, chips);
+        appendMsg(msg.role||'ai', txt, msg.type);
       }
       setChatSending(false);
       scrollChat();
     });
     socket.on('chat:status',({text})=>{
-      if(!chatSiteLoaded) return;
       appendSysMsg(text);
     });
     socket.on('chat:agent_log',(entry)=>{
-      if(!chatSiteLoaded) return;
       const txt=entry.tool||entry.message||JSON.stringify(entry).slice(0,80);
       const el=document.createElement('div');
       el.className='step-row run';
@@ -810,7 +759,6 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:step_done',(data)=>{
-      if(!chatSiteLoaded) return;
       const el=document.createElement('div');
       el.className='step-row ok';
       el.innerHTML=`<span>✓</span><span>${esc(data.tool||data.message||'Done')}</span>`;
@@ -818,7 +766,6 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:approval_request',(data)=>{
-      if(!chatSiteLoaded) return;
       const el=document.createElement('div');
       el.className='approval-card';
       el.innerHTML=`
@@ -832,28 +779,13 @@ function connectSocket(){
       scrollChat();
     });
     socket.on('chat:error',({message})=>{
-      if(!chatSiteLoaded) return;
       appendMsg('ai','⚠ '+message,'error');
       setChatSending(false);
     });
     socket.on('chat:setup_status',(data)=>{
-      chatSiteLoaded=true; // Site status received — now show messages
-      msgBuffer=[]; // Discard buffered onboarding messages
-      hideTyping();
-      if(data.complete){
-        // Site is connected — show agent welcome
-        const s=activeChatSite;
-        if(s) appendMsg('ai', buildWelcome(s));
-      } else if(data.needsRegister){
-        // Site not registered in backend yet
-        appendMsg('ai',
-          `⚠ **Site not fully registered**\n\nSSH credentials were saved, but the backend couldn't find the connection for **${activeChatSite?.domain||'this site'}**.\n\nTry removing the site and re-adding it using the **+ Add Website** button — the agent will re-run the SSH setup and register it properly.`
-        );
-      } else {
-        appendMsg('ai', buildWelcome(activeChatSite));
+      if(!data.complete){
+        appendSysMsg('This site needs to be connected first — use the Connect & Setup flow.');
       }
-      setChatSending(false);
-      scrollChat();
     });
   } catch(e){
     // No socket server available (static preview mode)
@@ -1010,8 +942,6 @@ function _doOpenChat(siteId){
   const s=sites.find(x=>x.id===siteId);
   if(!s) return;
   activeChatSite=s;
-  chatSiteLoaded=false; // Reset — wait for setup_status
-  msgBuffer=[];
 
   // Update chat header
   const dc=s.status==='online'?'on':'wa';
@@ -1028,32 +958,18 @@ function _doOpenChat(siteId){
       ${s.updates>0?`<span class="chip" style="color:var(--amber)">⬆ ${s.updates} updates</span>`:''}
     </div>`;
 
-  // Clear messages and show connecting state
+  // Clear messages
   const msgs=document.getElementById('chatMsgs');
   msgs.innerHTML='';
   streamEl=null;
 
+  // Load site into socket session
   if(socket && socket.connected){
-    // Show connecting indicator
-    appendSysMsg('Connecting agent to '+s.domain+'…');
-    showTyping();
     socket.emit('chat:load_site',{siteId:s.id});
-    // Fallback: if no setup_status in 5s, go offline mode
-    setTimeout(()=>{
-      if(!chatSiteLoaded){
-        chatSiteLoaded=true;
-        msgBuffer=[];
-        hideTyping();
-        // Clear connecting message and show welcome
-        msgs.innerHTML='';
-        appendMsg('ai', buildWelcome(s));
-        scrollChat();
-      }
-    }, 5000);
   } else {
-    // Offline mode — show welcome immediately
-    chatSiteLoaded=true;
-    appendMsg('ai', buildWelcome(s));
+    // Offline welcome
+    const wl=buildWelcome(s);
+    appendMsg('ai', wl);
   }
 
   // Focus input
@@ -1156,7 +1072,7 @@ function scrollChat(){
   if(el) el.scrollTop=el.scrollHeight;
 }
 
-function appendMsg(role, text, type, chips){
+function appendMsg(role, text, type){
   const msgs=document.getElementById('chatMsgs');
   if(!msgs) return null;
   const row=document.createElement('div');
@@ -1168,49 +1084,15 @@ function appendMsg(role, text, type, chips){
   bub.className='msg-bub';
   if(type==='error') bub.style.borderColor='rgba(244,63,94,.3)';
   bub.innerHTML=mdToHtml(text);
-  // Render chip actions (clickable URL buttons)
-  if(chips && chips.length){
-    const chipWrap=document.createElement('div');
-    chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:8px';
-    chips.forEach(c=>{
-      const a=document.createElement('a');
-      a.href=c.value||'#';a.target='_blank';a.rel='noopener';
-      a.style.cssText='background:var(--bg4);border:1px solid var(--b3);color:var(--sky);border-radius:5px;padding:3px 9px;font-size:11px;text-decoration:none;font-family:JetBrains Mono,monospace';
-      a.textContent='↗ '+c.value;
-      chipWrap.appendChild(a);
-    });
-    bub.appendChild(chipWrap);
-  }
   row.appendChild(av);
   row.appendChild(bub);
   msgs.appendChild(row);
   return bub;
 }
-
-function mdToHtml(txt){
-  if(!txt) return '';
-  // Strip backend-specific action tags from text
-  txt=txt
-    .replace(/\[CHIP\s+[^\]]+\]/g,'')
-    .replace(/\[RUN_TASK\s+[^\]]+\]/g,'')
-    .replace(/\[SAVE\s+[^\]]+\]/g,'')
-    .replace(/\[TEST_WP\]/g,'')
-    .replace(/\[TEST_SSH\]/g,'')
-    .replace(/\[SETUP_COMPLETE\]/g,'')
-    .replace(/\[LINK\s+([^\|]+)\|([^\]]+)\]/g,'<a href="$2" target="_blank" style="color:var(--sky)">$1</a>');
-  // Markdown-like formatting
-  return txt
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\[LINK\s+([^\|]+)\|([^\]]+)\]/g,'<a href="$2" target="_blank" style="color:var(--sky)">$1</a>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\n/g,'<br>');
-}
-
 function appendToStream(el, text){
   if(!el) return;
+  el.innerHTML=mdToHtml((el._raw||'')+text);
   el._raw=(el._raw||'')+text;
-  el.innerHTML=mdToHtml(el._raw);
 }
 function appendSysMsg(text){
   const msgs=document.getElementById('chatMsgs');
@@ -1225,15 +1107,31 @@ function showTyping(){
   const msgs=document.getElementById('chatMsgs');
   if(!msgs||document.getElementById('typing-ind')) return;
   const ind=document.createElement('div');
-  ind.id='typing-ind';ind.className='typing-ind';
+  ind.id='typing-ind';
+  ind.className='typing-ind';
   ind.innerHTML='<span></span><span></span><span></span>';
-  msgs.appendChild(ind);scrollChat();
+  msgs.appendChild(ind);
+  scrollChat();
 }
-function hideTyping(){ const ind=document.getElementById('typing-ind');if(ind)ind.remove(); }
-function approveAction(id,approved,card){
+function hideTyping(){
+  const ind=document.getElementById('typing-ind');
+  if(ind) ind.remove();
+}
+function approveAction(id, approved, card){
   if(socket) socket.emit('chat:approve',{id,approved});
-  if(card) card.innerHTML=`<div style="font-size:12px;color:${approved?'var(--emerald)':'var(--rose)'}">
-    ${approved?'✓ Approved — agent proceeding':'✕ Declined — action cancelled'}</div>`;
+  if(card){
+    card.innerHTML=`<div style="font-size:12px;color:${approved?'var(--emerald)':'var(--rose)'}">
+      ${approved?'✓ Approved — agent is proceeding':'✕ Declined — action cancelled'}</div>`;
+  }
+}
+
+function mdToHtml(txt){
+  if(!txt) return '';
+  return txt
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
 }
 
 /* ════════════════════════════════════════════
@@ -1397,7 +1295,7 @@ function setM(m,btn){
   document.getElementById('keyF').style.display=m==='key'?'':'none';
 }
 function resetF(){
-  ['f_url','f_name','f_host','f_pass','f_key','f_user','f_wpuser','f_wppass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  ['f_url','f_name','f_host','f_pass','f_key','f_user'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('f_port').value='22';
   document.getElementById('setupTb').classList.remove('show');
   setM('password',document.getElementById('mPw'));
@@ -1421,10 +1319,7 @@ function addSite(){
   const port=document.getElementById('f_port').value.trim()||'22';
   const pass=sMode==='password'?document.getElementById('f_pass').value.trim():'';
   const key=sMode==='key'?document.getElementById('f_key').value.trim():'';
-  const wpUser=document.getElementById('f_wpuser').value.trim()||'admin';
-  const wpAppPassword=document.getElementById('f_wppass').value.trim();
   if(!url||!host||!user||(!pass&&!key)){toast('Please fill all required fields','⚠️','err');return}
-  if(!wpAppPassword){toast('WordPress Application Password required for AI agent','⚠️','err');return}
   const btn=document.getElementById('subBtn');btn.disabled=true;btn.textContent='⏳ Connecting…';
   document.getElementById('setupTb').classList.add('show');
   const steps=[
@@ -1442,7 +1337,7 @@ function addSite(){
   const run=()=>{
     if(i>=steps.length){
       fetch('/api/sites/register',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id:siteId,url,name,domain,cat,sshHost:host,sshPort:parseInt(port),sshUser:user,sshPassword:pass,sshKeyPath:key,wpUser,wpAppPassword})
+        body:JSON.stringify({id:siteId,url,name,domain,cat,sshHost:host,sshPort:parseInt(port),sshUser:user,sshPassword:pass,sshKeyPath:key})
       }).catch(()=>{});
       const ns={id:siteId,domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
         plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
@@ -1460,57 +1355,6 @@ function addSite(){
     const [n,s,m]=steps[i++];setStep(n,s,m);setTimeout(run,s==='run'?550:180);
   };
   setTimeout(run,350);
-}
-
-function openWpCreds(){
-  if(!activeChatSite) return;
-  document.getElementById('wpCredsSubtitle').textContent=activeChatSite.domain;
-  document.getElementById('wc_user').value=activeChatSite.wpUser||'admin';
-  document.getElementById('wc_pass').value='';
-  document.getElementById('wpCredsOv').classList.add('open');
-  setTimeout(()=>document.getElementById('wc_pass').focus(),100);
-}
-function closeWpCreds(){ document.getElementById('wpCredsOv').classList.remove('open'); }
-function saveWpCreds(){
-  const s=activeChatSite;
-  if(!s) return;
-  const wpUser=document.getElementById('wc_user').value.trim()||'admin';
-  const wpAppPassword=document.getElementById('wc_pass').value.trim();
-  if(!wpAppPassword){ toast('Application Password required','⚠️','err'); return; }
-
-  // Save to site object
-  s.wpUser=wpUser;
-  s.wpAppPassword=wpAppPassword;
-  save();
-
-  // Update backend
-  fetch('/api/sites/register',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      id:s.id, url:s.url, name:s.name, domain:s.domain, cat:s.cat,
-      sshHost:s.sshHost||'', sshUser:s.sshUser||'', sshPort:s.sshPort||22,
-      sshPassword:s.sshPassword||'', wpUser, wpAppPassword, setupComplete:true
-    })
-  }).then(()=>{
-    closeWpCreds();
-    toast('Credentials saved — reconnecting agent…','✅');
-    // Reload the chat with new credentials
-    setTimeout(()=>{
-      chatSiteLoaded=false; msgBuffer=[];
-      document.getElementById('chatMsgs').innerHTML='';
-      if(socket && socket.connected){
-        appendSysMsg('Reconnecting with updated credentials…');
-        showTyping();
-        socket.emit('chat:load_site',{siteId:s.id});
-      } else {
-        chatSiteLoaded=true;
-        appendMsg('ai', buildWelcome(s));
-      }
-    }, 500);
-  }).catch(()=>{
-    closeWpCreds();
-    toast('Credentials saved locally','✅');
-  });
 }
 
 function openDel(id,dom){ delId=id;document.getElementById('delDom').textContent=dom;document.getElementById('delOv').classList.add('open'); }

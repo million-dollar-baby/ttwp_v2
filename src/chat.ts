@@ -13,17 +13,17 @@ import { Server as SocketIO } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { ANTHROPIC_API_KEY, MODEL, bus } from './config';
 import { Orchestrator } from './agents/orchestrator';
-import { loadSiteConfig } from './config';
+import { SiteConfig } from './types';
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-// ─── Config storage (replaces .env for UI users) ──────────────
+// ─── Config storage ───────────────────────────────────────────
 
 const CONFIG_PATH  = path.join(process.cwd(), 'data', 'site-config.json');
 const SITES_DIR    = path.join(process.cwd(), 'data', 'sites');
 
 export interface SiteSetup {
-  id?: string;         // unique site ID from frontend
+  id?: string;
   wpUrl?: string;
   wpUser?: string;
   wpAppPassword?: string;
@@ -33,6 +33,10 @@ export interface SiteSetup {
   sshPassword?: string;
   sshKeyPath?: string;
   wpPath?: string;
+  dbHost?: string;
+  dbName?: string;
+  dbUser?: string;
+  dbPassword?: string;
   stagingUrl?: string;
   gitRepoUrl?: string;
   slackWebhookUrl?: string;
@@ -40,6 +44,7 @@ export interface SiteSetup {
   domain?: string;
   setupComplete?: boolean;
   setupStep?: string;
+  dbExtracted?: boolean; // flag: DB creds already extracted via SSH
 }
 
 // ── Legacy single-site helpers (kept for backwards compat) ─────
@@ -60,7 +65,7 @@ export function isSetupDone(): boolean {
   return !!(s.setupComplete && s.wpUrl && s.sshHost);
 }
 
-// ── Per-site storage (multi-site support) ─────────────────────
+// ── Per-site storage ──────────────────────────────────────────
 
 export function loadSiteById(id: string): SiteSetup | null {
   try {
@@ -80,19 +85,107 @@ export function isSiteSetupDone(id: string): boolean {
   return !!(s?.setupComplete && s.wpUrl && s.sshHost);
 }
 
-function applySetupToEnv(cfg: SiteSetup): void {
-  if (cfg.wpUrl)          process.env.WP_URL           = cfg.wpUrl;
-  if (cfg.wpUser)         process.env.WP_USER          = cfg.wpUser;
-  if (cfg.wpAppPassword)  process.env.WP_APP_PASSWORD  = cfg.wpAppPassword;
-  if (cfg.sshHost)        process.env.SSH_HOST         = cfg.sshHost;
-  if (cfg.sshUser)        process.env.SSH_USER         = cfg.sshUser;
-  if (cfg.wpPath)         process.env.WP_PATH          = cfg.wpPath;
-  process.env.SSH_PORT     = String(cfg.sshPort || 22);
-  process.env.SSH_KEY_PATH = process.env.SSH_KEY_PATH || '/root/.ssh/id_rsa';
-  process.env.DB_NAME      = process.env.DB_NAME     || 'wordpress';
-  process.env.DB_USER      = process.env.DB_USER     || 'root';
-  process.env.DB_PASSWORD  = process.env.DB_PASSWORD || '';
-  process.env.DB_HOST      = process.env.DB_HOST     || 'localhost';
+// ─── Build SiteConfig directly from SiteSetup (NO env vars needed) ───
+// This is the KEY fix — we never call loadSiteConfig() (which needs .env)
+// Instead we build the config object straight from the per-site JSON.
+
+function siteSetupToConfig(setup: SiteSetup): SiteConfig {
+  return {
+    url:            (setup.wpUrl || '').replace(/\/$/, ''),
+    wpUser:         setup.wpUser         || 'admin',
+    wpAppPassword:  setup.wpAppPassword  || '',
+    sshHost:        setup.sshHost        || '',
+    sshPort:        setup.sshPort        || 22,
+    sshUser:        setup.sshUser        || 'root',
+    sshKeyPath:     setup.sshKeyPath     || process.env.SSH_KEY_PATH || '/root/.ssh/id_rsa',
+    wpPath:         (setup.wpPath        || process.env.WP_PATH || '/var/www/html').replace(/\/$/, ''),
+    dbHost:         setup.dbHost         || process.env.DB_HOST     || 'localhost',
+    dbName:         setup.dbName         || process.env.DB_NAME     || 'wordpress',
+    dbUser:         setup.dbUser         || process.env.DB_USER     || 'root',
+    dbPassword:     setup.dbPassword     || process.env.DB_PASSWORD || '',
+    stagingUrl:     setup.stagingUrl?.replace(/\/$/, ''),
+    gitBranch:      process.env.GIT_BRANCH || 'main',
+    gitRepo:        process.env.GIT_REPO,
+  };
+}
+
+// ─── Auto-extract DB credentials from wp-config.php via SSH ──
+// User never needs to provide DB credentials — we read them directly
+// from wp-config.php on the server using the SSH credentials they gave.
+
+async function extractDbCredsViaSsh(cfg: SiteSetup): Promise<void> {
+  if (!cfg.sshHost || !cfg.sshUser) return;
+  if (cfg.dbExtracted) return; // already done
+
+  const ssh = new NodeSSH();
+  try {
+    const connectOpts: Parameters<NodeSSH['connect']>[0] = {
+      host:         cfg.sshHost,
+      port:         cfg.sshPort || 22,
+      username:     cfg.sshUser,
+      readyTimeout: 15000,
+    };
+    if (cfg.sshPassword)  connectOpts.password     = cfg.sshPassword;
+    if (cfg.sshKeyPath && fs.existsSync(cfg.sshKeyPath)) {
+      connectOpts.privateKeyPath = cfg.sshKeyPath;
+    }
+
+    await ssh.connect(connectOpts);
+
+    // Find wp-config.php and extract DB constants
+    const wpConfigPath = cfg.wpPath
+      ? `${cfg.wpPath}/wp-config.php`
+      : '';
+
+    const searchCmd = wpConfigPath
+      ? `grep -E "define.*DB_(NAME|USER|PASSWORD|HOST)" "${wpConfigPath}" 2>/dev/null || find /var/www /home /srv -name wp-config.php 2>/dev/null | head -1 | xargs grep -E "define.*DB_(NAME|USER|PASSWORD|HOST)" 2>/dev/null`
+      : `find /var/www /home /srv -name wp-config.php 2>/dev/null | head -1 | xargs grep -E "define.*DB_(NAME|USER|PASSWORD|HOST)" 2>/dev/null`;
+
+    const result = await ssh.execCommand(searchCmd);
+    ssh.dispose();
+
+    if (!result.stdout) {
+      bus.log('warn', 'Could not extract DB credentials from wp-config.php', 'orchestrator');
+      return;
+    }
+
+    // Parse: define( 'DB_NAME', 'mydb' );
+    const extract = (key: string): string => {
+      const m = result.stdout.match(new RegExp(`DB_${key}['"\\s,]+['"](.*?)['"]`));
+      return m?.[1] || '';
+    };
+
+    const dbName     = extract('NAME');
+    const dbUser     = extract('USER');
+    const dbPassword = extract('PASSWORD');
+    const dbHost     = extract('HOST') || 'localhost';
+
+    if (dbName || dbPassword) {
+      cfg.dbName     = dbName     || cfg.dbName;
+      cfg.dbUser     = dbUser     || cfg.dbUser;
+      cfg.dbPassword = dbPassword || cfg.dbPassword;
+      cfg.dbHost     = dbHost     || cfg.dbHost;
+      cfg.dbExtracted = true;
+
+      // Also try to find WP path if not set
+      if (!cfg.wpPath) {
+        const findPath = await ssh.execCommand(
+          `find /var/www /home /srv -name wp-config.php 2>/dev/null | head -1`
+        ).catch(() => ({ stdout: '' }));
+        if (findPath.stdout.trim()) {
+          cfg.wpPath = findPath.stdout.trim().replace('/wp-config.php', '');
+        }
+      }
+
+      // Persist the extracted credentials back to site JSON
+      if (cfg.id) saveSiteById(cfg.id, cfg);
+
+      bus.log('info', `DB credentials auto-extracted from wp-config.php for ${cfg.domain || cfg.wpUrl}`, 'orchestrator');
+    }
+  } catch (err) {
+    try { ssh.dispose(); } catch { /* ignore */ }
+    bus.log('warn', `Could not auto-extract DB creds via SSH: ${err}`, 'orchestrator');
+  }
 }
 
 // ─── Connection testers ───────────────────────────────────────
@@ -117,7 +210,6 @@ async function testSSH(host: string, port: number, user: string, password?: stri
     await ssh.connect({ host, port: port || 22, username: user, password, readyTimeout: 15000 });
     const wpCheck = await ssh.execCommand('which wp 2>/dev/null || wp --info --allow-root 2>/dev/null | head -1');
     const wpCliFound = wpCheck.stdout.includes('wp') || wpCheck.stdout.includes('WP-CLI');
-    // Try to find wp-config.php
     const findWp = await ssh.execCommand('find /var/www /home /srv /opt -name wp-config.php 2>/dev/null | head -3');
     const wpPath = findWp.stdout.trim().split('\n')[0]?.replace('/wp-config.php', '') || '/var/www/html';
     ssh.dispose();
@@ -135,7 +227,6 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  // special UI hints
   type?: 'text' | 'approval' | 'task_update' | 'success' | 'error' | 'link_card';
   meta?: Record<string, unknown>;
 }
@@ -144,11 +235,10 @@ export interface ChatSession {
   id: string;
   messages: ChatMessage[];
   setup: SiteSetup;
-  activeSiteId?: string;   // which site this session is working on
+  activeSiteId?: string;
   createdAt: string;
 }
 
-// In-memory sessions (keyed by socket id)
 const sessions = new Map<string, ChatSession>();
 
 function getOrCreateSession(socketId: string): ChatSession {
@@ -163,7 +253,7 @@ function getOrCreateSession(socketId: string): ChatSession {
   return sessions.get(socketId)!;
 }
 
-// Load a specific site into a session (called when user navigates to chat from a site card)
+// Load a specific site into a session + auto-extract DB creds via SSH
 export function loadSiteIntoSession(socketId: string, siteId: string): boolean {
   const cfg = loadSiteById(siteId);
   if (!cfg) return false;
@@ -171,21 +261,26 @@ export function loadSiteIntoSession(socketId: string, siteId: string): boolean {
   const session = getOrCreateSession(socketId);
   session.activeSiteId = siteId;
   session.setup = cfg;
-  applySetupToEnv(cfg);
+
+  // Auto-extract DB credentials in background — no user input needed
+  if (!cfg.dbExtracted && cfg.sshHost) {
+    extractDbCredsViaSsh(cfg).then(() => {
+      // Update session with freshly extracted creds
+      session.setup = cfg;
+    }).catch(() => {});
+  }
+
   return true;
 }
 
-// Check if THIS session's active site is set up
 function isSessionSetupDone(session: ChatSession): boolean {
-  // Check per-site config first
   if (session.activeSiteId) {
     return isSiteSetupDone(session.activeSiteId);
   }
-  // Fallback to legacy single-site config
   return isSetupDone();
 }
 
-// ─── Onboarding system prompt ─────────────────────────────────
+// ─── System prompts ───────────────────────────────────────────
 
 const ONBOARDING_PROMPT = `You are WP Agent — a friendly AI assistant that helps people set up and maintain their WordPress websites.
 
@@ -215,8 +310,6 @@ SPECIAL INSTRUCTIONS:
 CURRENT SETUP STATE:
 {SETUP_STATE}`;
 
-// ─── Main agent system prompt ─────────────────────────────────
-
 const AGENT_PROMPT = `You are WP Agent — an AI WordPress maintenance assistant.
 
 The user's site is connected and ready. You can run any WordPress maintenance task.
@@ -242,7 +335,7 @@ SPECIAL INSTRUCTIONS:
 - For links: [LINK text|url]
 - When asking for approval: [APPROVAL id|action description]`;
 
-// ─── Parse special tokens from AI response ───────────────────
+// ─── Parse special tokens from AI response ────────────────────
 
 interface ParsedResponse {
   text: string;
@@ -253,30 +346,25 @@ function parseResponse(raw: string): ParsedResponse {
   const actions: ParsedResponse['actions'] = [];
   let text = raw;
 
-  // [RUN_TASK]...[/RUN_TASK]
   text = text.replace(/\[RUN_TASK\]([\s\S]*?)\[\/RUN_TASK\]/g, (_, v) => {
     actions.push({ type: 'run_task', value: v.trim() });
     return '';
   });
 
-  // [SAVE]{...}[/SAVE]
   text = text.replace(/\[SAVE\]([\s\S]*?)\[\/SAVE\]/g, (_, v) => {
     actions.push({ type: 'save', value: v.trim() });
     return '';
   });
 
-  // [TEST_WP] / [TEST_SSH]
   if (text.includes('[TEST_WP]')) { actions.push({ type: 'test_wp', value: '' }); text = text.replace('[TEST_WP]', ''); }
   if (text.includes('[TEST_SSH]')) { actions.push({ type: 'test_ssh', value: '' }); text = text.replace('[TEST_SSH]', ''); }
   if (text.includes('[SETUP_COMPLETE]')) { actions.push({ type: 'setup_complete', value: '' }); text = text.replace('[SETUP_COMPLETE]', ''); }
 
-  // [CHIP text]
   text = text.replace(/\[CHIP ([^\]]+)\]/g, (_, v) => {
     actions.push({ type: 'chip', value: v.trim() });
     return '';
   });
 
-  // [LINK text|url]
   text = text.replace(/\[LINK ([^|]+)\|([^\]]+)\]/g, (_, label, url) => {
     actions.push({ type: 'link', value: label.trim(), extra: url.trim() });
     return `[🔗 ${label.trim()}]`;
@@ -285,7 +373,7 @@ function parseResponse(raw: string): ParsedResponse {
   return { text: text.trim(), actions };
 }
 
-// ─── Core chat handler (called per socket message) ────────────
+// ─── Core chat handler ────────────────────────────────────────
 
 export async function handleChatMessage(
   socketId: string,
@@ -295,7 +383,6 @@ export async function handleChatMessage(
 ): Promise<void> {
   const session = getOrCreateSession(socketId);
 
-  // If siteId provided and session doesn't have it yet, load it
   if (siteId && session.activeSiteId !== siteId) {
     loadSiteIntoSession(socketId, siteId);
   }
@@ -303,7 +390,6 @@ export async function handleChatMessage(
   const socket = io.sockets.sockets.get(socketId);
   if (!socket) return;
 
-  // Add user message to history
   session.messages.push({
     id: uuidv4(), role: 'user', content: userText,
     timestamp: new Date().toISOString(),
@@ -311,25 +397,21 @@ export async function handleChatMessage(
 
   const setupDone = isSessionSetupDone(session);
 
-  // Build system prompt
   let systemPrompt: string;
   if (!setupDone) {
     const setupState = JSON.stringify(session.setup, null, 2);
     systemPrompt = ONBOARDING_PROMPT.replace('{SETUP_STATE}', setupState);
   } else {
     const cfg = session.setup;
-    applySetupToEnv(cfg);
-    const siteInfo = `URL: ${cfg.wpUrl}\nSite name: ${cfg.siteName || 'unknown'}\nSSH: ${cfg.sshUser}@${cfg.sshHost}\nWP Path: ${cfg.wpPath || '/var/www/html'}`;
+    const siteInfo = `URL: ${cfg.wpUrl}\nSite name: ${cfg.siteName || 'unknown'}\nSSH: ${cfg.sshUser}@${cfg.sshHost}\nWP Path: ${cfg.wpPath || '/var/www/html'}\nDB: ${cfg.dbName || 'auto-detect'}`;
     systemPrompt = AGENT_PROMPT.replace('{SITE_INFO}', siteInfo);
   }
 
-  // Build message history for Claude
   const history = session.messages.slice(-20).map(m => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
   }));
 
-  // ── Stream response from Claude ───────────────────────────
   socket.emit('chat:typing', true);
 
   let fullText = '';
@@ -351,10 +433,8 @@ export async function handleChatMessage(
 
     socket.emit('chat:typing', false);
 
-    // ── Parse and execute actions ─────────────────────────
     const parsed = parseResponse(fullText);
 
-    // Emit the final cleaned message
     const assistantMsg: ChatMessage = {
       id: uuidv4(),
       role: 'assistant',
@@ -369,7 +449,6 @@ export async function handleChatMessage(
     session.messages.push(assistantMsg);
     socket.emit('chat:message', assistantMsg);
 
-    // ── Process each action ───────────────────────────────
     for (const action of parsed.actions) {
 
       if (action.type === 'save') {
@@ -420,18 +499,13 @@ export async function handleChatMessage(
       if (action.type === 'setup_complete') {
         session.setup.setupComplete = true;
         saveSetup(session.setup);
-        // Also save to per-site file if we have a site ID
         if (session.activeSiteId) {
           saveSiteById(session.activeSiteId, session.setup);
         }
-        applySetupToEnv(session.setup);
         socket.emit('chat:setup_complete', { siteName: session.setup.siteName });
-        // Send welcome message with quick actions
         const msg = buildAssistantMsg(
           `🎉 Setup complete! WP Agent is connected to **${session.setup.siteName || session.setup.wpUrl}** and ready to work.\n\nWhat would you like me to do first?`,
-          {
-            chips: ['Update all plugins', 'Run a site health check', 'Check for errors', 'Show me what needs attention'],
-          }
+          { chips: ['Update all plugins', 'Run a site health check', 'Check for errors', 'Show me what needs attention'] }
         );
         session.messages.push(msg);
         socket.emit('chat:message', msg);
@@ -449,7 +523,7 @@ export async function handleChatMessage(
   }
 }
 
-// ─── Task execution with live streaming to chat ───────────────
+// ─── Task execution ───────────────────────────────────────────
 
 async function executeTask(
   description: string,
@@ -462,29 +536,18 @@ async function executeTask(
 
   const taskId = uuidv4();
 
-  // Tell user task is starting
   const startMsg = buildAssistantMsg(`Starting: **${description}**\n\nI'll keep you updated as I work through it…`, { taskId });
   session.messages.push(startMsg);
   socket.emit('chat:message', startMsg);
 
-  // Attach bus listener to stream progress to this socket
   const onLog = (entry: { level: string; agent?: string; message: string }) => {
-    socket.emit('chat:agent_log', {
-      level: entry.level,
-      agent: entry.agent,
-      message: entry.message,
-    });
+    socket.emit('chat:agent_log', { level: entry.level, agent: entry.agent, message: entry.message });
   };
 
   const onEvent = (event: { type: string; data: unknown }) => {
     if (event.type === 'approval:requested') {
       const req = event.data as { id: string; action: string; risk: string; details: unknown };
-      socket.emit('chat:approval_request', {
-        id: req.id,
-        action: req.action,
-        risk: req.risk,
-        details: req.details,
-      });
+      socket.emit('chat:approval_request', { id: req.id, action: req.action, risk: req.risk, details: req.details });
     }
     if (event.type === 'step:completed') {
       socket.emit('chat:step_done', event.data);
@@ -495,15 +558,15 @@ async function executeTask(
   bus.on('event', onEvent);
 
   try {
-    applySetupToEnv(session.setup);
-    const config = loadSiteConfig();
+    // ✅ KEY FIX: Build config directly from per-site JSON — NO env vars needed
+    // DB credentials are auto-extracted from wp-config.php via SSH
+    const config = siteSetupToConfig(session.setup);
     const orchestrator = new Orchestrator(config);
     const task = await orchestrator.run(description);
 
     bus.off('log', onLog);
     bus.off('event', onEvent);
 
-    // Summarise result in chat
     const succeeded = task.status === 'completed';
     const stepCount = task.steps.length;
     const toolCount = task.steps.reduce((n, s) => n + s.toolCalls.length, 0);
@@ -550,7 +613,7 @@ function buildAssistantMsg(content: string, meta: Record<string, unknown> = {}):
   };
 }
 
-// ─── Welcome message for new sessions ────────────────────────
+// ─── Welcome message ──────────────────────────────────────────
 
 export function getWelcomeMessage(isSetup: boolean, siteName?: string): ChatMessage {
   if (isSetup && siteName) {
