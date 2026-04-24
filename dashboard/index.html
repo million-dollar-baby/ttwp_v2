@@ -837,20 +837,53 @@ function connectSocket(){
       setChatSending(false);
     });
     socket.on('chat:setup_status',(data)=>{
-      chatSiteLoaded=true; // Site status received — now show messages
-      msgBuffer=[]; // Discard buffered onboarding messages
+      chatSiteLoaded=true;
+      msgBuffer=[];
       hideTyping();
+
       if(data.complete){
-        // Site is connected — show agent welcome
+        // Site fully registered and connected
         const s=activeChatSite;
         if(s) appendMsg('ai', buildWelcome(s));
-      } else if(data.needsRegister){
-        // Site not registered in backend yet
-        appendMsg('ai',
-          `⚠ **Site not fully registered**\n\nSSH credentials were saved, but the backend couldn't find the connection for **${activeChatSite?.domain||'this site'}**.\n\nTry removing the site and re-adding it using the **+ Add Website** button — the agent will re-run the SSH setup and register it properly.`
-        );
       } else {
-        appendMsg('ai', buildWelcome(activeChatSite));
+        // Backend doesn't have this site registered — auto re-register from localStorage
+        const s=activeChatSite;
+        if(s && s.sshHost){
+          // We have site data in localStorage — silently re-register with backend
+          document.getElementById('chatMsgs').innerHTML='';
+          appendSysMsg('Re-syncing site with backend…');
+          fetch('/api/sites/register',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              id:s.id, url:s.url, name:s.name, domain:s.domain, cat:s.cat,
+              sshHost:s.sshHost, sshUser:s.sshUser, sshPort:s.sshPort||22,
+              sshPassword:s.sshPassword||'', sshKeyPath:s.sshKeyPath||'',
+              wpUser:s.wpUser||'admin', wpAppPassword:s.wpAppPassword||'',
+              setupComplete:true
+            })
+          }).then(()=>{
+            // Retry load_site after re-registering
+            if(socket && socket.connected){
+              socket.emit('chat:load_site',{siteId:s.id});
+              // Give it 3s, if no response just show welcome
+              setTimeout(()=>{
+                if(document.getElementById('chatMsgs').querySelectorAll('.msg-row').length===0){
+                  document.getElementById('chatMsgs').innerHTML='';
+                  appendMsg('ai', buildWelcome(s));
+                  setChatSending(false);
+                }
+              }, 3000);
+            }
+          }).catch(()=>{
+            // Backend not reachable — show welcome anyway
+            document.getElementById('chatMsgs').innerHTML='';
+            appendMsg('ai', buildWelcome(s));
+          });
+        } else {
+          // No SSH data in localStorage at all — show welcome with limited mode note
+          document.getElementById('chatMsgs').innerHTML='';
+          appendMsg('ai', buildWelcome(s));
+        }
       }
       setChatSending(false);
       scrollChat();
@@ -1038,13 +1071,12 @@ function _doOpenChat(siteId){
     appendSysMsg('Connecting agent to '+s.domain+'…');
     showTyping();
     socket.emit('chat:load_site',{siteId:s.id});
-    // Fallback: if no setup_status in 5s, go offline mode
+    // Fallback: if no setup_status in 5s, show welcome anyway
     setTimeout(()=>{
       if(!chatSiteLoaded){
         chatSiteLoaded=true;
         msgBuffer=[];
         hideTyping();
-        // Clear connecting message and show welcome
         msgs.innerHTML='';
         appendMsg('ai', buildWelcome(s));
         scrollChat();
@@ -1446,7 +1478,12 @@ function addSite(){
       }).catch(()=>{});
       const ns={id:siteId,domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
         plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
-        load:(Math.random()*2+0.5).toFixed(1)+'s',up:'99.9%',chk:'Just now',cat,at:Date.now()};
+        load:(Math.random()*2+0.5).toFixed(1)+'s',up:'99.9%',chk:'Just now',cat,at:Date.now(),
+        // Persist credentials for auto-re-register after server restart
+        sshHost:host, sshUser:user, sshPort:parseInt(port),
+        sshPassword:pass, sshKeyPath:key,
+        wpUser:wpUser, wpAppPassword:wpAppPassword
+      };
       sites.unshift(ns);save();
       pushTaskLog({title:`Site added — ${domain}`,desc:'SSH connected, WP plugin installed, monitoring activated',status:'ok',site:domain,ts:Date.now()});
       addAlert({level:'ok',message:`${domain} connected and monitoring activated`,source:'system',ts:Date.now()});
