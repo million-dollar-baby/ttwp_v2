@@ -77,12 +77,18 @@ export async function promoteToProduction(
       record('Syncing theme files from staging → production...');
 
       const ssh = new NodeSSH();
-      await ssh.connect({
+      const sshOpts: Parameters<NodeSSH['connect']>[0] = {
         host: config.sshHost,
         port: config.sshPort,
         username: config.sshUser,
-        privateKeyPath: config.sshKeyPath,
-      });
+        readyTimeout: 15000,
+      };
+      if (config.sshPassword) {
+        sshOpts.password = config.sshPassword;
+      } else if (config.sshKeyPath) {
+        sshOpts.privateKeyPath = config.sshKeyPath;
+      }
+      await ssh.connect(sshOpts);
 
       const stagingThemesPath = `${config.stagingWpPath}/wp-content/themes/`;
       const prodThemesPath    = `${config.wpPath}/wp-content/themes/`;

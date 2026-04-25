@@ -25,12 +25,18 @@ export class WpCliTool {
 
   async connect(): Promise<void> {
     if (this.connected) return;
-    await this.ssh.connect({
+    const opts: Parameters<NodeSSH['connect']>[0] = {
       host: this.sshHost,
       port: this.config.sshPort,
       username: this.config.sshUser,
-      privateKeyPath: this.config.sshKeyPath,
-    });
+      readyTimeout: 15000,
+    };
+    if (this.config.sshPassword) {
+      opts.password = this.config.sshPassword;
+    } else if (this.config.sshKeyPath) {
+      opts.privateKeyPath = this.config.sshKeyPath;
+    }
+    await this.ssh.connect(opts);
     this.connected = true;
     bus.log('debug', `SSH connected to ${this.sshHost}`, 'orchestrator');
   }

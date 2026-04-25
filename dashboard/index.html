@@ -530,11 +530,11 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
 <div class="ov" id="addOv" onclick="ooc(event,'addOv',closeAdd)">
   <div class="modal">
     <div class="mh">
-      <div><div class="mt">Add WordPress Website</div><div class="ms">SSH credentials only — agent handles everything else</div></div>
+      <div><div class="mt">Add WordPress Website</div><div class="ms">SSH details only — agent handles the rest</div></div>
       <button class="mx" onclick="closeAdd()">✕</button>
     </div>
     <div class="mb">
-      <div class="inote">🔒 The agent will SSH into your server, auto-install the WP plugin, create an app password, and activate monitoring — no manual steps required.</div>
+      <div class="inote">🔒 The agent connects via SSH, finds your WordPress install, generates an application password automatically — no manual WP admin steps.</div>
       <div class="fsec">
         <div class="fl">Site Details</div>
         <div class="fr">
@@ -564,22 +564,14 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
         </div>
       </div>
 
-      <div class="fsec">
-        <div class="fl">WordPress Credentials</div>
-        <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:8px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:10px;line-height:1.6">
-          ⚡ <strong>Required for AI agent</strong> — Go to WP Admin → Users → Profile → Application Passwords → Add New. Enter any name and copy the generated password.
-        </div>
-        <div class="fr">
-          <div class="fd"><label>WP Admin Username *</label><input id="f_wpuser" type="text" placeholder="admin"></div>
-          <div class="fd"><label>Application Password *</label><input id="f_wppass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
-        </div>
-      </div>
       <div class="tb" id="setupTb">
         <div class="ts" id="ts1"><span class="tic">⏳</span>Connecting via SSH…</div>
-        <div class="ts" id="ts2" style="opacity:.25"><span class="tic">⏳</span>Verifying WordPress install…</div>
-        <div class="ts" id="ts3" style="opacity:.25"><span class="tic">⏳</span>Installing WP Agent plugin…</div>
-        <div class="ts" id="ts4" style="opacity:.25"><span class="tic">⏳</span>Generating app password…</div>
-        <div class="ts" id="ts5" style="opacity:.25"><span class="tic">⏳</span>Activating monitoring…</div>
+        <div class="ts" id="ts2" style="opacity:.25"><span class="tic">⏳</span>Locating WordPress install…</div>
+        <div class="ts" id="ts3" style="opacity:.25"><span class="tic">⏳</span>Checking WP-CLI…</div>
+        <div class="ts" id="ts4" style="opacity:.25"><span class="tic">⏳</span>Finding admin user…</div>
+        <div class="ts" id="ts5" style="opacity:.25"><span class="tic">⏳</span>Generating application password…</div>
+        <div class="ts" id="ts6" style="opacity:.25"><span class="tic">⏳</span>Reading database config…</div>
+        <div class="ts" id="ts7" style="opacity:.25"><span class="tic">⏳</span>Saving site…</div>
       </div>
       <div class="ma">
         <button class="mc" onclick="closeAdd()">Cancel</button>
@@ -1429,15 +1421,24 @@ function setM(m,btn){
   document.getElementById('keyF').style.display=m==='key'?'':'none';
 }
 function resetF(){
-  ['f_url','f_name','f_host','f_pass','f_key','f_user','f_wpuser','f_wppass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  ['f_url','f_name','f_host','f_pass','f_key','f_user'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('f_port').value='22';
   document.getElementById('setupTb').classList.remove('show');
   setM('password',document.getElementById('mPw'));
   const b=document.getElementById('subBtn');b.disabled=false;b.textContent='⚡ Connect & Setup';
-  ['ts1','ts2','ts3','ts4','ts5'].forEach((id,i)=>{
-    const el=document.getElementById(id);el.className='ts';el.style.opacity=i===0?'1':'.25';
-    const texts=['Connecting via SSH…','Verifying WordPress install…','Installing WP Agent plugin…','Generating app password…','Activating monitoring…'];
-    el.innerHTML=`<span class="tic">⏳</span>${texts[i]}`;
+  const stepTexts=[
+    'Connecting via SSH…',
+    'Locating WordPress install…',
+    'Checking WP-CLI…',
+    'Finding admin user…',
+    'Generating application password…',
+    'Reading database config…',
+    'Saving site…',
+  ];
+  ['ts1','ts2','ts3','ts4','ts5','ts6','ts7'].forEach((id,i)=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.className='ts';el.style.opacity=i===0?'1':'.25';
+    el.innerHTML=`<span class="tic">⏳</span>${stepTexts[i]}`;
   });
 }
 function setStep(n,state,msg){
@@ -1453,50 +1454,83 @@ function addSite(){
   const port=document.getElementById('f_port').value.trim()||'22';
   const pass=sMode==='password'?document.getElementById('f_pass').value.trim():'';
   const key=sMode==='key'?document.getElementById('f_key').value.trim():'';
-  const wpUser=document.getElementById('f_wpuser').value.trim()||'admin';
-  const wpAppPassword=document.getElementById('f_wppass').value.trim();
   if(!url||!host||!user||(!pass&&!key)){toast('Please fill all required fields','⚠️','err');return}
-  if(!wpAppPassword){toast('WordPress Application Password required for AI agent','⚠️','err');return}
+
   const btn=document.getElementById('subBtn');btn.disabled=true;btn.textContent='⏳ Connecting…';
   document.getElementById('setupTb').classList.add('show');
-  const steps=[
-    [1,'run','Connecting via SSH…'],[1,'ok','SSH connection established ✓'],
-    [2,'run','Verifying WordPress install…'],[2,'ok','WordPress 6.9.4 detected ✓'],
-    [3,'run','Installing WP Agent plugin…'],[3,'ok','Plugin installed & activated ✓'],
-    [4,'run','Generating app password…'],[4,'ok','App password created ✓'],
-    [5,'run','Activating monitoring…'],[5,'ok','Monitoring active — all systems go ✓'],
-  ];
-  let i=0;
+
   const domain=url.replace(/https?:\/\//,'').replace(/\/.*$/,'').toLowerCase();
   const name=document.getElementById('f_name').value.trim()||domain;
   const cat=document.getElementById('f_cat').value||'client';
   const siteId='s'+Date.now();
-  const run=()=>{
-    if(i>=steps.length){
-      fetch('/api/sites/register',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id:siteId,url,name,domain,cat,sshHost:host,sshPort:parseInt(port),sshUser:user,sshPassword:pass,sshKeyPath:key,wpUser,wpAppPassword})
-      }).catch(()=>{});
-      const ns={id:siteId,domain,name,url,status:'online',wp:'6.9.4',php:'8.2',
-        plugins:Math.floor(Math.random()*12)+5,updates:Math.floor(Math.random()*3),
-        load:(Math.random()*2+0.5).toFixed(1)+'s',up:'99.9%',chk:'Just now',cat,at:Date.now(),
-        // Persist credentials for auto-re-register after server restart
-        sshHost:host, sshUser:user, sshPort:parseInt(port),
-        sshPassword:pass, sshKeyPath:key,
-        wpUser:wpUser, wpAppPassword:wpAppPassword
-      };
-      sites.unshift(ns);save();
-      pushTaskLog({title:`Site added — ${domain}`,desc:'SSH connected, WP plugin installed, monitoring activated',status:'ok',site:domain,ts:Date.now()});
-      addAlert({level:'ok',message:`${domain} connected and monitoring activated`,source:'system',ts:Date.now()});
-      renderAll();
-      setTimeout(()=>{closeAdd();toast(`${domain} connected & ready!`,'✅');
-        setTimeout(()=>{const c=document.getElementById('card-'+ns.id);
-          if(c){c.style.borderColor='rgba(16,217,160,.45)';setTimeout(()=>c.style.borderColor='',2500)}},100);
-      },700);
+  const clientId=(socket&&socket.id)?socket.id:null;
+
+  // Listen for live progress updates from the server
+  const onStep=(payload)=>{
+    if(!payload||typeof payload.step!=='number')return;
+    setStep(payload.step,payload.status,payload.message);
+    if(payload.status==='fail'&&payload.detail){
+      // Show detail in tooltip-style row
+      const el=document.getElementById('ts'+payload.step);
+      if(el){
+        const d=document.createElement('div');
+        d.style.cssText='font-size:11px;color:var(--t3);margin-left:22px;margin-top:3px;line-height:1.4';
+        d.textContent=payload.detail.length>140?payload.detail.slice(0,140)+'…':payload.detail;
+        el.appendChild(d);
+      }
+    }
+  };
+  if(socket)socket.on('onboard:step',onStep);
+
+  fetch('/api/sites/onboard',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      id:siteId, url, label:name, category:cat,
+      sshHost:host, sshPort:parseInt(port), sshUser:user,
+      sshPassword:pass, sshKey:key,
+      clientId,
+    }),
+  })
+  .then(r=>r.json().then(j=>({ok:r.ok,body:j})))
+  .then(({ok,body})=>{
+    if(socket)socket.off('onboard:step',onStep);
+    if(!ok||!body.ok){
+      btn.disabled=false;btn.textContent='⚡ Connect & Setup';
+      toast(body&&body.error?body.error:'Onboarding failed','❌','err');
       return;
     }
-    const [n,s,m]=steps[i++];setStep(n,s,m);setTimeout(run,s==='run'?550:180);
-  };
-  setTimeout(run,350);
+    // Build local site card with the auto-detected data
+    const ns={
+      id:body.siteId||siteId,domain,name,url,
+      status:'online',
+      wp:body.wpVersion||'detected',
+      php:'—',
+      plugins:0,updates:0,load:'—',up:'—',chk:'Just now',
+      cat,at:Date.now(),
+      // Persist credentials for auto-re-register after server restart
+      sshHost:host,sshUser:user,sshPort:parseInt(port),
+      sshPassword:pass,sshKeyPath:key,
+      wpUser:body.wpUser||'admin',
+      wpPath:body.wpPath||'',
+    };
+    sites.unshift(ns);save();
+    pushTaskLog({title:`Site added — ${domain}`,desc:`SSH connected, WP ${body.wpVersion||'detected'}, app password generated`,status:'ok',site:domain,ts:Date.now()});
+    addAlert({level:'ok',message:`${domain} connected — agent ready`,source:'system',ts:Date.now()});
+    renderAll();
+    setTimeout(()=>{
+      closeAdd();toast(`${domain} connected & ready!`,'✅');
+      setTimeout(()=>{
+        const c=document.getElementById('card-'+ns.id);
+        if(c){c.style.borderColor='rgba(16,217,160,.45)';setTimeout(()=>c.style.borderColor='',2500)}
+      },100);
+    },700);
+  })
+  .catch(err=>{
+    if(socket)socket.off('onboard:step',onStep);
+    btn.disabled=false;btn.textContent='⚡ Connect & Setup';
+    toast('Network error: '+err,'❌','err');
+  });
 }
 
 function openWpCreds(){

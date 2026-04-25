@@ -90,6 +90,10 @@ export function isSiteSetupDone(id: string): boolean {
 // Instead we build the config object straight from the per-site JSON.
 
 function siteSetupToConfig(setup: SiteSetup): SiteConfig {
+  // Prefer password auth if provided, otherwise key path.
+  // Don't force a default key path — that creates failed SSH attempts when
+  // the user only gave a password.
+  const hasPassword = !!setup.sshPassword;
   return {
     url:            (setup.wpUrl || '').replace(/\/$/, ''),
     wpUser:         setup.wpUser         || 'admin',
@@ -97,7 +101,8 @@ function siteSetupToConfig(setup: SiteSetup): SiteConfig {
     sshHost:        setup.sshHost        || '',
     sshPort:        setup.sshPort        || 22,
     sshUser:        setup.sshUser        || 'root',
-    sshKeyPath:     setup.sshKeyPath     || process.env.SSH_KEY_PATH || '/root/.ssh/id_rsa',
+    sshPassword:    setup.sshPassword,
+    sshKeyPath:     setup.sshKeyPath     || (hasPassword ? '' : (process.env.SSH_KEY_PATH || '')),
     wpPath:         (setup.wpPath        || process.env.WP_PATH || '/var/www/html').replace(/\/$/, ''),
     dbHost:         setup.dbHost         || process.env.DB_HOST     || 'localhost',
     dbName:         setup.dbName         || process.env.DB_NAME     || 'wordpress',
