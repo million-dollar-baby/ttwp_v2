@@ -294,9 +294,9 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
 .fr.full{grid-template-columns:1fr}
 .fd{display:flex;flex-direction:column;gap:4px}
 .fd label{font-size:11px;font-weight:600;color:var(--t2)}
-.fd input,.fd select{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:7px 10px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;width:100%}
-.fd input:focus,.fd select:focus{border-color:rgba(123,104,240,.5);background:var(--bg4)}
-.fd input::placeholder{color:var(--t3)}
+.fd input,.fd select,.fd textarea{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:7px 10px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;width:100%}
+.fd input:focus,.fd select:focus,.fd textarea:focus{border-color:rgba(123,104,240,.5);background:var(--bg4)}
+.fd input::placeholder,.fd textarea::placeholder{color:var(--t3)}
 .fd select option{background:var(--bg3)}
 .stab{display:flex;gap:4px;margin-bottom:9px}
 .to{flex:1;padding:6px;border-radius:7px;border:1px solid var(--b2);background:var(--bg3);color:var(--t2);font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:all .12s;font-family:inherit}
@@ -553,14 +553,23 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
           <div class="fd"><label>SSH Host *</label><input id="f_host" type="text" placeholder="server.example.com"></div>
           <div class="fd"><label>Port</label><input id="f_port" type="number" value="22"></div>
         </div>
-        <div class="fd" style="margin-top:8px"><label>SSH Username *</label><input id="f_user" type="text" placeholder="ubuntu / root"></div>
+        <div class="fd" style="margin-top:8px">
+          <label>SSH Username * <span style="font-weight:400;color:var(--t3);font-size:10.5px">(e.g. root, ubuntu — not your key file name)</span></label>
+          <input id="f_user" type="text" placeholder="root">
+        </div>
         <div style="margin-top:10px">
           <div class="stab">
             <button class="to on" id="mPw" onclick="setM('password',this)">🔑 Password</button>
             <button class="to" id="mKey" onclick="setM('key',this)">📄 SSH Key</button>
           </div>
           <div id="pwF" class="fd"><label>SSH Password *</label><input id="f_pass" type="password" placeholder="••••••••"></div>
-          <div id="keyF" class="fd" style="display:none"><label>Private Key Path</label><input id="f_key" type="text" placeholder="/home/user/.ssh/id_rsa"></div>
+          <div id="keyF" class="fd" style="display:none">
+            <label>SSH Private Key *</label>
+            <textarea id="f_key" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAA...&#10;-----END OPENSSH PRIVATE KEY-----" style="resize:vertical;font-family:ui-monospace,Menlo,Monaco,monospace;font-size:11px;line-height:1.45;min-height:88px"></textarea>
+            <div style="font-size:10.5px;color:var(--t3);margin-top:6px;line-height:1.55">
+              💡 Paste your <strong style="color:rgba(123,104,240,.9)">private</strong> key (starts with <code style="font-family:inherit;background:var(--bg4);padding:1px 4px;border-radius:3px">-----BEGIN</code>). It's usually in <code style="font-family:inherit;background:var(--bg4);padding:1px 4px;border-radius:3px">~/.ssh/id_rsa</code>. <strong style="color:rgba(246,165,35,.85)">Don't paste your public key</strong> (the one starting with <code style="font-family:inherit;background:var(--bg4);padding:1px 4px;border-radius:3px">ssh-rsa</code> in <code style="font-family:inherit;background:var(--bg4);padding:1px 4px;border-radius:3px">id_rsa.pub</code>).
+            </div>
+          </div>
         </div>
       </div>
 

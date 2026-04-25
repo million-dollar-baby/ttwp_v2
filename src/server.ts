@@ -134,6 +134,69 @@ async function runOnboardingFlow(body: OnboardBody): Promise<OnboardResult> {
   const clientId = body.clientId;
   const ssh = new NodeSSH();
 
+  // Resolve siteId early so we can use it for key file path
+  const domain = (body.url || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+  const siteId = body.id || 's' + Date.now();
+
+  // ── Pre-step: figure out SSH auth method ──────────────────
+  // The user can give us EITHER a password, OR a private key.
+  // The key field can contain three things:
+  //   1. Private key CONTENT (multi-line, starts with -----BEGIN)
+  //   2. A file PATH on the server (single line, starts with /)
+  //   3. A PUBLIC key by mistake (starts with ssh-rsa / ssh-ed25519 / etc) — common error
+  // We auto-detect and handle each case clearly.
+  let resolvedKeyPath = '';
+  if (!body.sshPassword && body.sshKey) {
+    const k = body.sshKey.trim();
+
+    // Case 3: public key — user pasted wrong file
+    if (
+      k.startsWith('ssh-rsa ') ||
+      k.startsWith('ssh-ed25519 ') ||
+      k.startsWith('ssh-dss ') ||
+      k.startsWith('ecdsa-sha2-')
+    ) {
+      emitOnboardStep(
+        clientId, 1, 'fail',
+        'You pasted a PUBLIC key by mistake',
+        'The agent needs your PRIVATE key. Public keys start with "ssh-rsa". Private keys are usually in ~/.ssh/id_rsa (without .pub) and start with -----BEGIN OPENSSH PRIVATE KEY-----',
+      );
+      return { ok: false, error: 'Public key provided. Private key is required.' };
+    }
+
+    // Case 1: private key content — write to disk
+    if (k.startsWith('-----BEGIN') || k.includes('PRIVATE KEY')) {
+      try {
+        const keysDir = path.join(process.cwd(), 'data', 'keys');
+        fs.mkdirSync(keysDir, { recursive: true, mode: 0o700 });
+        resolvedKeyPath = path.join(keysDir, `${siteId}.key`);
+        // Make sure key ends with newline (some SSH parsers need it)
+        const content = k.endsWith('\n') ? k : k + '\n';
+        fs.writeFileSync(resolvedKeyPath, content, { mode: 0o600 });
+      } catch (err) {
+        emitOnboardStep(clientId, 1, 'fail', 'Could not write key file', String(err));
+        return { ok: false, error: `Could not save private key: ${err}` };
+      }
+    }
+    // Case 2: file path
+    else {
+      if (!fs.existsSync(k)) {
+        emitOnboardStep(
+          clientId, 1, 'fail',
+          'Key file not found',
+          `The path "${k}" doesn't exist on the agent server. If you're running the agent in the cloud (Railway/etc), paste your private key contents instead of a file path.`,
+        );
+        return { ok: false, error: `Key file not found: ${k}` };
+      }
+      resolvedKeyPath = k;
+    }
+  }
+
+  if (!body.sshPassword && !resolvedKeyPath) {
+    emitOnboardStep(clientId, 1, 'fail', 'No SSH credentials provided');
+    return { ok: false, error: 'Either an SSH password or a private key is required.' };
+  }
+
   try {
     // ── Step 1: SSH connect ──────────────────────────────────
     emitOnboardStep(clientId, 1, 'run', 'Connecting via SSH…');
@@ -146,15 +209,27 @@ async function runOnboardingFlow(body: OnboardBody): Promise<OnboardResult> {
     };
     if (body.sshPassword) {
       sshOpts.password = body.sshPassword;
-    } else if (body.sshKey) {
-      sshOpts.privateKeyPath = body.sshKey;
+    } else if (resolvedKeyPath) {
+      sshOpts.privateKeyPath = resolvedKeyPath;
     }
 
     try {
       await ssh.connect(sshOpts);
     } catch (err) {
-      emitOnboardStep(clientId, 1, 'fail', 'SSH connection failed', String(err));
-      return { ok: false, error: `SSH connection failed: ${err}` };
+      const msg = String(err);
+      // Make common SSH errors more actionable
+      let friendly = msg;
+      if (msg.includes('All configured authentication methods failed')) {
+        friendly = `Authentication failed. Check that:
+• SSH username "${body.sshUser}" is correct (not a key file name like id_rsa — usually it's "root", "ubuntu", "www-data", etc.)
+• ${body.sshPassword ? 'Password is correct' : 'Private key matches a public key authorized on the server'}`;
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT')) {
+        friendly = `Cannot reach ${body.sshHost}:${body.sshPort || 22}. Check the host, port, and that SSH is enabled on your server.`;
+      } else if (msg.includes('ENOTFOUND')) {
+        friendly = `DNS lookup failed for "${body.sshHost}". Check the hostname.`;
+      }
+      emitOnboardStep(clientId, 1, 'fail', 'SSH connection failed', friendly);
+      return { ok: false, error: friendly };
     }
     emitOnboardStep(clientId, 1, 'ok', `Connected to ${body.sshHost}`);
 
@@ -266,8 +341,6 @@ async function runOnboardingFlow(body: OnboardBody): Promise<OnboardResult> {
     // ── Step 7: Save site ────────────────────────────────────
     emitOnboardStep(clientId, 7, 'run', 'Saving site…');
 
-    const domain = (body.url || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
-    const siteId = body.id || 's' + Date.now();
     const cfg: SiteSetup = {
       id:             siteId,
       wpUrl:          (body.url || '').replace(/\/$/, ''),
@@ -277,7 +350,7 @@ async function runOnboardingFlow(body: OnboardBody): Promise<OnboardResult> {
       sshPort:        body.sshPort || 22,
       sshUser:        body.sshUser!,
       sshPassword:    body.sshPassword || '',
-      sshKeyPath:     body.sshKey || '',
+      sshKeyPath:     resolvedKeyPath,
       wpPath,
       dbHost, dbName, dbUser, dbPassword,
       dbExtracted:    !!dbName,
