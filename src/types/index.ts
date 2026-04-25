@@ -2,32 +2,32 @@
 
 export interface SiteConfig {
   url: string;
-  wpUser?: string;
-  wpAppPassword?: string;
+  wpUser: string;
+  wpAppPassword: string;
   sshHost: string;
   sshPort: number;
   sshUser: string;
   sshKeyPath: string;
-  sshPassword?: string;     // optional — if set, used in preference to sshKeyPath
-  wpPath?: string;
+  sshPassword?: string;
+  wpPath: string;
   stagingUrl?: string;
   stagingSshHost?: string;
   stagingWpPath?: string;
-  dbHost?: string;
-  dbName?: string;
-  dbUser?: string;
-  dbPassword?: string;
+  dbHost: string;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
   gitRepo?: string;
   gitBranch?: string;
 }
 
 export type TaskStatus =
-  | 'pending'
-  | 'running'
-  | 'waiting_approval'
-  | 'completed'
-  | 'failed'
-  | 'rolled_back';
+  | "pending"
+  | "running"
+  | "waiting_approval"
+  | "completed"
+  | "failed"
+  | "rolled_back";
 
 export interface Task {
   id: string;
@@ -46,7 +46,7 @@ export interface TaskStep {
   id: string;
   description: string;
   agent: AgentName;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   toolCalls: ToolCall[];
   output?: string;
   startedAt?: string;
@@ -63,7 +63,7 @@ export interface ToolCall {
   durationMs?: number;
 }
 
-export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 export interface ApprovalRequest {
   id: string;
@@ -81,7 +81,7 @@ export interface ApprovalRequest {
 export interface BackupRecord {
   id: string;
   taskId: string;
-  environment: 'production' | 'staging';
+  environment: "production" | "staging";
   filePath?: string;
   dbDump?: string;
   gitCommit?: string;
@@ -130,7 +130,7 @@ export interface KnownIssue {
   id: string;
   description: string;
   component: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   workaround?: string;
   discoveredAt: string;
   resolved: boolean;
@@ -157,20 +157,29 @@ export interface PerformanceBaseline {
 
 // ─── Agent types ──────────────────────────────────────────────
 
-export type AgentName = 'orchestrator' | 'builder' | 'content' | 'updater' | 'debugger' | 'tester' | 'audit' | 'performance' | 'monitor';
+export type AgentName =
+  | "orchestrator"
+  | "builder"
+  | "content"
+  | "updater"
+  | "debugger"
+  | "tester"
+  | "audit"
+  | "performance"
+  | "monitor";
 
 // ─── Monitoring ───────────────────────────────────────────────
 
-export type MonitorSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type MonitorSeverity = "critical" | "high" | "medium" | "low";
 export type MonitorCheckType =
-  | 'uptime'
-  | 'ssl'
-  | 'error_spike'
-  | 'cron'
-  | 'malware'
-  | 'spam_users'
-  | 'broken_links'
-  | 'page_speed';
+  | "uptime"
+  | "ssl"
+  | "error_spike"
+  | "cron"
+  | "malware"
+  | "spam_users"
+  | "broken_links"
+  | "page_speed";
 
 export interface MonitorAlert {
   id: string;
@@ -197,7 +206,7 @@ export interface SiteHealthSnapshot {
   siteId: string;
   checks: MonitorCheckResult[];
   alerts: MonitorAlert[];
-  overallStatus: 'healthy' | 'degraded' | 'critical';
+  overallStatus: "healthy" | "degraded" | "critical";
   snapshotAt: string;
 }
 
@@ -209,27 +218,32 @@ export interface AgentResult {
 }
 
 export interface AgentMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string | ContentBlock[];
 }
 
 export type ContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool_use_id: string; content: string };
+  | { type: "text"; text: string }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | { type: "tool_result"; tool_use_id: string; content: string };
 
 // ─── Dashboard event stream ───────────────────────────────────
 
 export type EventType =
-  | 'task:created'
-  | 'task:updated'
-  | 'step:started'
-  | 'step:completed'
-  | 'tool:called'
-  | 'tool:result'
-  | 'approval:requested'
-  | 'approval:resolved'
-  | 'log';
+  | "task:created"
+  | "task:updated"
+  | "step:started"
+  | "step:completed"
+  | "tool:called"
+  | "tool:result"
+  | "approval:requested"
+  | "approval:resolved"
+  | "log";
 
 export interface DashboardEvent {
   type: EventType;
@@ -237,7 +251,7 @@ export interface DashboardEvent {
   timestamp: string;
 }
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
+export type LogLevel = "info" | "warn" | "error" | "debug" | "success";
 
 export interface LogEntry {
   level: LogLevel;
