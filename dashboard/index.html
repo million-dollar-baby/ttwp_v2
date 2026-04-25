@@ -406,7 +406,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
   <div class="topbar" id="tb-chat" style="display:none">
     <button class="chat-back" onclick="showView('sites')">← All Sites</button>
     <div id="chat-site-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden"></div>
-    <button class="fb" onclick="openWpCreds()" title="Update WordPress Application Password" style="font-size:11px;white-space:nowrap">🔑 WP Credentials</button>
+
   </div>
 
   <!-- ── Topbar (Generic) ── -->
@@ -590,33 +590,6 @@ html,body{min-height:100%;background:var(--bg);color:var(--t1);font-size:14px;li
   </div>
 </div>
 
-<!-- ═════ WP CREDENTIALS MODAL ═════ -->
-<div class="ov" id="wpCredsOv" onclick="ooc(event,'wpCredsOv',closeWpCreds)">
-  <div class="modal" style="width:420px">
-    <div class="mh">
-      <div>
-        <div class="mt">WordPress Credentials</div>
-        <div class="ms" id="wpCredsSubtitle">Update WP App Password for this site</div>
-      </div>
-      <button class="mx" onclick="closeWpCreds()">✕</button>
-    </div>
-    <div class="mb">
-      <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:9px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:14px;line-height:1.7">
-        ⚡ WP Admin → <strong>Users → Profile → Application Passwords</strong> → Add New → copy the password here
-      </div>
-      <div class="fsec">
-        <div class="fr">
-          <div class="fd"><label>WP Admin Username</label><input id="wc_user" type="text" placeholder="admin"></div>
-          <div class="fd"><label>Application Password</label><input id="wc_pass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
-        </div>
-      </div>
-      <div class="ma">
-        <button class="mc" onclick="closeWpCreds()">Cancel</button>
-        <button class="msub" onclick="saveWpCreds()">💾 Save & Reconnect</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ═════ DELETE MODAL ═════ -->
 <div class="ov" id="delOv" onclick="ooc(event,'delOv',closeDel)">
@@ -644,30 +617,16 @@ let socket=null, chatStreaming=false, streamEl=null;
 let chatSiteLoaded=false; // true after chat:setup_status received
 let msgBuffer=[]; // buffer messages received before site is loaded
 
-const DEMO=[
-  {id:'s1',domain:'jainamsilkmill.com',name:'Jainam Silk Mills',url:'https://jainamsilkmill.com',status:'online',wp:'6.9.4',php:'8.3',plugins:9,updates:3,load:'13.8s',up:'99.2%',chk:'5m ago',cat:'client',at:Date.now()-864e5*10},
-  {id:'s2',domain:'give-back.org',name:'Give Back',url:'https://give-back.org',status:'warning',wp:'6.9.4',php:'8.3',plugins:13,updates:0,load:'3.7s',up:'98.1%',chk:'4m ago',cat:'client',at:Date.now()-864e5*8},
-  {id:'s3',domain:'lisciobyapeksha.com',name:'Liscio by Apeksha',url:'https://lisciobyapeksha.com',status:'online',wp:'6.9.4',php:'8.2',plugins:16,updates:6,load:'2.6s',up:'99.9%',chk:'4m ago',cat:'client',dbg:true,at:Date.now()-864e5*7},
-  {id:'s4',domain:'sbandpartners.com',name:'SB & Partners',url:'https://sbandpartners.com',status:'warning',wp:'6.9.4',php:'8.2',plugins:9,updates:0,load:'2.2s',up:'97.4%',chk:'4m ago',cat:'client',at:Date.now()-864e5*6},
-  {id:'s5',domain:'sqft.co.in',name:'SQFT',url:'https://sqft.co.in',status:'online',wp:'6.9.4',php:'8.2',plugins:13,updates:1,load:'2.6s',up:'99.9%',chk:'1m ago',cat:'client',at:Date.now()-864e5*5},
-  {id:'s6',domain:'dentathome.com',name:'Denta Home',url:'https://dentathome.com',status:'online',wp:'6.9.4',php:'8.3',plugins:12,updates:1,load:'507ms',up:'100%',chk:'4m ago',cat:'client',at:Date.now()-864e5*4},
-  {id:'s7',domain:'aotp.in',name:'AOTP',url:'https://aotp.in',status:'online',wp:'6.9.4',php:'8.2',plugins:8,updates:2,load:'2.1s',up:'99.9%',chk:'Just now',cat:'client',at:Date.now()-864e5*3},
-  {id:'s8',domain:'gamyq.com',name:'GamyQ',url:'https://gamyq.com',status:'online',wp:'6.9.4',php:'8.3',plugins:4,updates:1,load:'1.8s',up:'99.7%',chk:'3m ago',cat:'client',at:Date.now()-864e5*2},
-];
+
 
 /* ════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════ */
 function init(){
   const d=localStorage.getItem('wpa_sites');
-  sites=d?JSON.parse(d):[...DEMO];
+  sites=d?JSON.parse(d):[];
   alerts=JSON.parse(localStorage.getItem('wpa_alerts')||'[]');
   taskLog=JSON.parse(localStorage.getItem('wpa_tasklog')||'[]');
-
-  // Seed initial alerts from sites if none exist
-  if(!alerts.length) seedAlerts();
-  // Seed initial task log if none
-  if(!taskLog.length) seedTaskLog();
 
   connectSocket();
   renderAll();
@@ -847,36 +806,34 @@ function connectSocket(){
         const s=activeChatSite;
         if(s) appendMsg('ai', buildWelcome(s));
       } else {
-        // Backend doesn't have this site registered — auto re-register from localStorage
+        // Backend doesn't have this site registered — re-run onboard via SSH from stored credentials
         const s=activeChatSite;
         if(s && s.sshHost){
-          // We have site data in localStorage — silently re-register with backend
           document.getElementById('chatMsgs').innerHTML='';
-          appendSysMsg('Re-syncing site with backend…');
-          fetch('/api/sites/register',{
+          appendSysMsg('Reconnecting to '+s.domain+' via SSH…');
+          showTyping();
+          fetch('/api/sites/onboard',{
             method:'POST', headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
-              id:s.id, url:s.url, name:s.name, domain:s.domain, cat:s.cat,
+              id:s.id, url:s.url, label:s.name, category:s.cat,
               sshHost:s.sshHost, sshUser:s.sshUser, sshPort:s.sshPort||22,
-              sshPassword:s.sshPassword||'', sshKeyPath:s.sshKeyPath||'',
-              wpUser:s.wpUser||'admin', wpAppPassword:s.wpAppPassword||'',
-              setupComplete:true
+              sshPassword:s.sshPassword||'', sshKey:s.sshKeyPath||'',
+              clientId:socket?.id,
             })
-          }).then(()=>{
-            // Retry load_site after re-registering
-            if(socket && socket.connected){
+          }).then(r=>r.json()).then(body=>{
+            hideTyping();
+            if(body.ok){
+              // Update stored WP user from fresh onboard
+              s.wpUser=body.wpUser||s.wpUser||'admin';
+              s.wpPath=body.wpPath||s.wpPath||'';
+              save();
               socket.emit('chat:load_site',{siteId:s.id});
-              // Give it 3s, if no response just show welcome
-              setTimeout(()=>{
-                if(document.getElementById('chatMsgs').querySelectorAll('.msg-row').length===0){
-                  document.getElementById('chatMsgs').innerHTML='';
-                  appendMsg('ai', buildWelcome(s));
-                  setChatSending(false);
-                }
-              }, 3000);
+            } else {
+              document.getElementById('chatMsgs').innerHTML='';
+              appendMsg('ai', buildWelcome(s));
             }
           }).catch(()=>{
-            // Backend not reachable — show welcome anyway
+            hideTyping();
             document.getElementById('chatMsgs').innerHTML='';
             appendMsg('ai', buildWelcome(s));
           });
@@ -1272,21 +1229,6 @@ function approveAction(id,approved,card){
 /* ════════════════════════════════════════════
    ALERTS
 ════════════════════════════════════════════ */
-function seedAlerts(){
-  const now=Date.now();
-  alerts=[
-    {id:'a1',level:'ok',message:'All sites online — monitoring active',source:'monitor',ts:now-60e3*2},
-    {id:'a2',level:'warn',message:'lisciobyapeksha.com — debug mode is enabled on production',source:'health',ts:now-60e3*8},
-    {id:'a3',level:'warn',message:'jainamsilkmill.com — 3 plugin updates available',source:'updater',ts:now-60e3*12},
-    {id:'a4',level:'warn',message:'jainamsilkmill.com — load time is 13.8s (above threshold)',source:'performance',ts:now-60e3*18},
-    {id:'a5',level:'info',message:'sqft.co.in — monitoring check completed',source:'monitor',ts:now-60e3*25},
-    {id:'a6',level:'info',message:'dentathome.com — monitoring check completed',source:'monitor',ts:now-60e3*30},
-    {id:'a7',level:'warn',message:'sbandpartners.com — site response degraded (97.4% uptime)',source:'monitor',ts:now-60e3*45},
-    {id:'a8',level:'info',message:'System startup — all monitors initialized',source:'system',ts:now-60e3*60},
-  ];
-  saveAlerts();
-}
-
 function addAlert(entry){
   const al={id:Date.now()+Math.random(),...entry};
   alerts.unshift(al);
@@ -1331,19 +1273,6 @@ function clearAlerts(){
 /* ════════════════════════════════════════════
    TASK LOG
 ════════════════════════════════════════════ */
-function seedTaskLog(){
-  const now=Date.now();
-  taskLog=[
-    {id:'t1',title:'Monitor check — all sites',desc:'8 sites checked, all systems nominal',status:'ok',site:'all',ts:now-60e3*3},
-    {id:'t2',title:'Site added — aotp.in',desc:'SSH connected, WP plugin installed, monitoring activated',status:'ok',site:'aotp.in',ts:now-864e5*3},
-    {id:'t3',title:'Plugin update — sqft.co.in',desc:'WooCommerce updated from 8.1.0 to 8.2.1',status:'ok',site:'sqft.co.in',ts:now-864e5*3.5},
-    {id:'t4',title:'Monitor check — all sites',desc:'8 sites checked, 2 warnings detected',status:'info',site:'all',ts:now-864e5*4},
-    {id:'t5',title:'Site added — dentathome.com',desc:'SSH connected, WP plugin installed, monitoring activated',status:'ok',site:'dentathome.com',ts:now-864e5*4},
-    {id:'t6',title:'Security scan — lisciobyapeksha.com',desc:'Scan complete — 0 vulnerabilities found',status:'ok',site:'lisciobyapeksha.com',ts:now-864e5*5},
-  ];
-  saveTaskLog();
-}
-
 function pushTaskLog(entry){
   taskLog.unshift({id:Date.now()+Math.random(),...entry});
   if(taskLog.length>200) taskLog.pop();
@@ -1539,57 +1468,6 @@ function addSite(){
     if(socket)socket.off('onboard:step',onStep);
     btn.disabled=false;btn.textContent='⚡ Connect & Setup';
     toast('Network error: '+err,'❌','err');
-  });
-}
-
-function openWpCreds(){
-  if(!activeChatSite) return;
-  document.getElementById('wpCredsSubtitle').textContent=activeChatSite.domain;
-  document.getElementById('wc_user').value=activeChatSite.wpUser||'admin';
-  document.getElementById('wc_pass').value='';
-  document.getElementById('wpCredsOv').classList.add('open');
-  setTimeout(()=>document.getElementById('wc_pass').focus(),100);
-}
-function closeWpCreds(){ document.getElementById('wpCredsOv').classList.remove('open'); }
-function saveWpCreds(){
-  const s=activeChatSite;
-  if(!s) return;
-  const wpUser=document.getElementById('wc_user').value.trim()||'admin';
-  const wpAppPassword=document.getElementById('wc_pass').value.trim();
-  if(!wpAppPassword){ toast('Application Password required','⚠️','err'); return; }
-
-  // Save to site object
-  s.wpUser=wpUser;
-  s.wpAppPassword=wpAppPassword;
-  save();
-
-  // Update backend
-  fetch('/api/sites/register',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      id:s.id, url:s.url, name:s.name, domain:s.domain, cat:s.cat,
-      sshHost:s.sshHost||'', sshUser:s.sshUser||'', sshPort:s.sshPort||22,
-      sshPassword:s.sshPassword||'', wpUser, wpAppPassword, setupComplete:true
-    })
-  }).then(()=>{
-    closeWpCreds();
-    toast('Credentials saved — reconnecting agent…','✅');
-    // Reload the chat with new credentials
-    setTimeout(()=>{
-      chatSiteLoaded=false; msgBuffer=[];
-      document.getElementById('chatMsgs').innerHTML='';
-      if(socket && socket.connected){
-        appendSysMsg('Reconnecting with updated credentials…');
-        showTyping();
-        socket.emit('chat:load_site',{siteId:s.id});
-      } else {
-        chatSiteLoaded=true;
-        appendMsg('ai', buildWelcome(s));
-      }
-    }, 500);
-  }).catch(()=>{
-    closeWpCreds();
-    toast('Credentials saved locally','✅');
   });
 }
 

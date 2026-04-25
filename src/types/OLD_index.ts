@@ -2,21 +2,21 @@
 
 export interface SiteConfig {
   url: string;
-  wpUser?: string;
-  wpAppPassword?: string;
+  wpUser: string;
+  wpAppPassword: string;
   sshHost: string;
   sshPort: number;
   sshUser: string;
   sshKeyPath: string;
   sshPassword?: string;     // optional — if set, used in preference to sshKeyPath
-  wpPath?: string;
+  wpPath: string;
   stagingUrl?: string;
   stagingSshHost?: string;
   stagingWpPath?: string;
-  dbHost?: string;
-  dbName?: string;
-  dbUser?: string;
-  dbPassword?: string;
+  dbHost: string;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
   gitRepo?: string;
   gitBranch?: string;
 }

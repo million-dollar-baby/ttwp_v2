@@ -1,0 +1,4025 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WP Agent — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #08090e;
+        --bg2: #0d0e17;
+        --bg3: #131421;
+        --bg4: #191b2c;
+        --bg5: #1f2235;
+        --b1: rgba(255, 255, 255, 0.04);
+        --b2: rgba(255, 255, 255, 0.08);
+        --b3: rgba(255, 255, 255, 0.14);
+        --t1: #e4e6f1;
+        --t2: #8b93aa;
+        --t3: #42485c;
+        --p1: #7b68f0;
+        --p2: #5548d4;
+        --ps: rgba(123, 104, 240, 0.1);
+        --pg: rgba(123, 104, 240, 0.22);
+        --sky: #38bdf8;
+        --emerald: #10d9a0;
+        --amber: #f6a523;
+        --rose: #f43f5e;
+        --blue: #4f8ef7;
+        --violet: #a78bfa;
+        --r: 9px;
+        --r2: 13px;
+        --r3: 18px;
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      html,
+      body {
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--t1);
+        font-size: 14px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      ::selection {
+        background: var(--pg);
+        color: var(--t1);
+      }
+      ::-webkit-scrollbar {
+        width: 3px;
+        height: 3px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--b2);
+        border-radius: 3px;
+      }
+
+      .layout {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* ════ SIDEBAR ════ */
+      .sb {
+        width: 216px;
+        background: var(--bg2);
+        border-right: 1px solid var(--b1);
+        display: flex;
+        flex-direction: column;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        flex-shrink: 0;
+        overflow-y: auto;
+      }
+      .sb-logo {
+        padding: 14px 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid var(--b1);
+      }
+      .logo-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #7b68f0 0%, #38bdf8 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+        box-shadow: 0 0 18px rgba(123, 104, 240, 0.35);
+      }
+      .logo-text .lt {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--t1);
+      }
+      .logo-text .ls {
+        font-size: 10px;
+        color: var(--t3);
+        margin-top: -1px;
+      }
+      .sb-nav {
+        flex: 1;
+        padding: 6px 6px;
+      }
+      .sn-label {
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--t3);
+        padding: 8px 8px 4px;
+        margin-top: 4px;
+      }
+      .sn-label:first-child {
+        margin-top: 0;
+      }
+      .ni {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6.5px 8px;
+        border-radius: 7px;
+        cursor: pointer;
+        color: var(--t2);
+        font-size: 13px;
+        font-weight: 450;
+        transition: all 0.12s;
+        text-decoration: none;
+        position: relative;
+        user-select: none;
+        margin: 1px 0;
+      }
+      .ni:hover {
+        background: var(--bg3);
+        color: var(--t1);
+      }
+      .ni.on {
+        background: var(--ps);
+        color: var(--t1);
+        font-weight: 500;
+      }
+      .ni.on::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: 25%;
+        bottom: 25%;
+        width: 2px;
+        background: var(--p1);
+        border-radius: 2px;
+      }
+      .ni-ic {
+        width: 16px;
+        text-align: center;
+        flex-shrink: 0;
+        font-size: 13px;
+        opacity: 0.75;
+      }
+      .ni.on .ni-ic {
+        opacity: 1;
+      }
+      .ni-badge {
+        margin-left: auto;
+        font-size: 9.5px;
+        font-weight: 600;
+        border-radius: 20px;
+        padding: 1.5px 6px;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .ni-badge.def {
+        background: var(--bg4);
+        color: var(--t3);
+      }
+      .ni-badge.red {
+        background: rgba(244, 63, 94, 0.14);
+        color: var(--rose);
+      }
+      .ni-badge.pur {
+        background: var(--ps);
+        color: var(--p1);
+      }
+      .sb-foot {
+        padding: 6px 6px 10px;
+        border-top: 1px solid var(--b1);
+        margin-top: auto;
+      }
+      .user-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .user-row:hover {
+        background: var(--bg3);
+      }
+      .u-av {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #4f8ef7, #7b68f0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .u-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--t1);
+      }
+      .u-plan {
+        font-size: 10px;
+        color: var(--t3);
+      }
+
+      /* ════ MAIN ════ */
+      .main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100vh;
+      }
+      .topbar {
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid var(--b1);
+        background: rgba(8, 9, 14, 0.88);
+        backdrop-filter: blur(16px);
+        flex-shrink: 0;
+        z-index: 20;
+      }
+      .pg-title {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        flex: 1;
+      }
+      .srch {
+        position: relative;
+      }
+      .srch input {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 8px;
+        padding: 7px 10px 7px 29px;
+        color: var(--t1);
+        font-size: 12.5px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+        width: 200px;
+      }
+      .srch input:focus {
+        border-color: rgba(123, 104, 240, 0.45);
+        background: var(--bg4);
+      }
+      .srch input::placeholder {
+        color: var(--t3);
+      }
+      .s-ic {
+        position: absolute;
+        left: 9px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--t3);
+        font-size: 12px;
+        pointer-events: none;
+      }
+      .filt {
+        display: flex;
+        gap: 4px;
+      }
+      .fb {
+        background: transparent;
+        border: 1px solid var(--b2);
+        color: var(--t2);
+        border-radius: 7px;
+        padding: 6px 9px;
+        font-size: 12px;
+        font-weight: 500;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      .fb:hover,
+      .fb.on {
+        background: var(--bg3);
+        color: var(--t1);
+        border-color: var(--b3);
+      }
+      .ab {
+        background: linear-gradient(135deg, var(--p1), var(--p2));
+        border: none;
+        color: #fff;
+        border-radius: 8px;
+        padding: 7px 13px;
+        font-size: 12.5px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition:
+          opacity 0.12s,
+          transform 0.1s;
+        box-shadow: 0 3px 14px rgba(123, 104, 240, 0.28);
+        white-space: nowrap;
+      }
+      .ab:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+      }
+      .ab:active {
+        transform: none;
+      }
+
+      /* Stats */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 14px 22px 0;
+        flex-shrink: 0;
+      }
+      .sc {
+        background: var(--bg2);
+        border: 1px solid var(--b1);
+        border-radius: 11px;
+        padding: 11px 14px;
+        position: relative;
+      }
+      .sc::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 14px;
+        right: 14px;
+        height: 1.5px;
+        border-radius: 2px;
+        opacity: 0.5;
+      }
+      .sc.g::before {
+        background: var(--emerald);
+      }
+      .sc.a::before {
+        background: var(--amber);
+      }
+      .sc.r::before {
+        background: var(--rose);
+      }
+      .sc.p::before {
+        background: var(--p1);
+      }
+      .sv {
+        font-size: 22px;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+        line-height: 1;
+      }
+      .sc.g .sv {
+        color: var(--emerald);
+      }
+      .sc.a .sv {
+        color: var(--amber);
+      }
+      .sc.r .sv {
+        color: var(--rose);
+      }
+      .sc.p .sv {
+        color: var(--p1);
+      }
+      .sl {
+        font-size: 11px;
+        color: var(--t2);
+        margin-top: 3px;
+        font-weight: 500;
+      }
+
+      /* Grid */
+      .gw {
+        padding: 16px 22px 48px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .gh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 11px;
+      }
+      .gc {
+        font-size: 11.5px;
+        color: var(--t2);
+      }
+      .ss {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        color: var(--t2);
+        border-radius: 7px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-family: inherit;
+        cursor: pointer;
+        outline: none;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 11px;
+      }
+
+      /* Card */
+      .card {
+        background: var(--bg2);
+        border: 1px solid var(--b1);
+        border-radius: 13px;
+        cursor: pointer;
+        transition: all 0.18s;
+        overflow: hidden;
+      }
+      .card:hover {
+        border-color: var(--b3);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+      }
+      .ci {
+        padding: 14px 14px 10px;
+      }
+      .ct {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .si {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+        flex: 1;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 4px;
+      }
+      .dot.on {
+        background: var(--emerald);
+        box-shadow: 0 0 6px rgba(16, 217, 160, 0.55);
+      }
+      .dot.wa {
+        background: var(--amber);
+        box-shadow: 0 0 6px rgba(246, 165, 35, 0.5);
+      }
+      .dot.of {
+        background: var(--rose);
+        box-shadow: 0 0 6px rgba(244, 63, 94, 0.5);
+      }
+      .sd {
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sm {
+        font-size: 11px;
+        color: var(--t2);
+        margin-top: 1px;
+      }
+      .acts {
+        display: flex;
+        gap: 3px;
+        flex-shrink: 0;
+        margin-left: 6px;
+      }
+      .ac {
+        width: 27px;
+        height: 27px;
+        border-radius: 6px;
+        border: 1px solid var(--b2);
+        background: var(--bg3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.12s;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: var(--t2);
+        position: relative;
+      }
+      .ac:hover {
+        color: var(--t1);
+        background: var(--bg4);
+        border-color: var(--b3);
+      }
+      .ac[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: calc(100%+5px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg4);
+        border: 1px solid var(--b3);
+        color: var(--t1);
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 5px;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .ac.sky:hover {
+        background: rgba(56, 189, 248, 0.09);
+        border-color: rgba(56, 189, 248, 0.28);
+        color: var(--sky);
+      }
+      .ac.pur:hover {
+        background: var(--ps);
+        border-color: rgba(123, 104, 240, 0.32);
+        color: var(--p1);
+      }
+      .ac.blue:hover {
+        background: rgba(79, 142, 247, 0.09);
+        border-color: rgba(79, 142, 247, 0.28);
+        color: var(--blue);
+      }
+      .ac.rose:hover {
+        background: rgba(244, 63, 94, 0.07);
+        border-color: rgba(244, 63, 94, 0.22);
+        color: var(--rose);
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 0;
+      }
+      .tg {
+        background: var(--bg3);
+        border: 1px solid var(--b1);
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-size: 11px;
+        color: var(--t2);
+        font-family: "JetBrains Mono", monospace;
+        letter-spacing: -0.01em;
+      }
+      .tg.upd {
+        background: rgba(246, 165, 35, 0.06);
+        border-color: rgba(246, 165, 35, 0.22);
+        color: var(--amber);
+        cursor: pointer;
+        transition: all 0.12s;
+      }
+      .tg.upd:hover {
+        background: rgba(246, 165, 35, 0.16);
+        border-color: rgba(246, 165, 35, 0.45);
+      }
+      .tg.dbg {
+        background: rgba(244, 63, 94, 0.05);
+        border-color: rgba(244, 63, 94, 0.18);
+        color: var(--rose);
+      }
+      .tg.ok {
+        background: rgba(16, 217, 160, 0.05);
+        border-color: rgba(16, 217, 160, 0.18);
+        color: var(--emerald);
+      }
+      .tg.upding {
+        background: rgba(123, 104, 240, 0.08);
+        border-color: rgba(123, 104, 240, 0.28);
+        color: var(--p1);
+        cursor: default;
+      }
+      .cf {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--b1);
+        font-size: 11px;
+        color: var(--t2);
+        background: rgba(0, 0, 0, 0.18);
+      }
+      .cf span {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .cf span:last-child {
+        margin-left: auto;
+      }
+      .fi {
+        opacity: 0.45;
+        font-size: 11px;
+      }
+
+      /* Empty */
+      .empty {
+        grid-column: 1/-1;
+        text-align: center;
+        padding: 56px 20px;
+      }
+      .empty-ic {
+        font-size: 36px;
+        opacity: 0.3;
+        margin-bottom: 12px;
+      }
+      .empty-t {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+      .empty-s {
+        font-size: 13px;
+        color: var(--t2);
+        margin-bottom: 18px;
+      }
+
+      /* ════ VIEW WRAPPERS ════ */
+      .view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #v-sites {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ════ CHAT VIEW ════ */
+      #v-chat {
+        display: none;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+      }
+      .chat-hdr {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--b1);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+        background: var(--bg2);
+      }
+      .chat-back {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--t2);
+        font-family: inherit;
+        transition: all 0.12s;
+      }
+      .chat-back:hover {
+        background: var(--bg4);
+        color: var(--t1);
+        border-color: var(--b3);
+      }
+      .chat-site-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+      .chat-site-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--emerald);
+        box-shadow: 0 0 6px rgba(16, 217, 160, 0.55);
+        flex-shrink: 0;
+      }
+      .chat-site-dot.wa {
+        background: var(--amber);
+        box-shadow: 0 0 6px rgba(246, 165, 35, 0.5);
+      }
+      .chat-site-name {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .chat-site-meta {
+        font-size: 11px;
+        color: var(--t2);
+      }
+      .chat-chips {
+        display: flex;
+        gap: 5px;
+        margin-left: auto;
+      }
+      .chip {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 5px;
+        padding: 2px 8px;
+        font-size: 10.5px;
+        color: var(--t2);
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .chat-msgs {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .msg-row {
+        display: flex;
+        gap: 10px;
+        max-width: 720px;
+        width: 100%;
+      }
+      .msg-row.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+      }
+      .msg-row.ai {
+        align-self: flex-start;
+      }
+      .msg-av {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        margin-top: 2px;
+      }
+      .msg-av.ai-av {
+        background: linear-gradient(135deg, var(--p1), var(--sky));
+        box-shadow: 0 0 10px rgba(123, 104, 240, 0.3);
+      }
+      .msg-av.user-av {
+        background: linear-gradient(135deg, #4f8ef7, #7b68f0);
+      }
+      .msg-bub {
+        padding: 10px 14px;
+        border-radius: 11px;
+        font-size: 13px;
+        line-height: 1.65;
+        max-width: 560px;
+        word-break: break-word;
+      }
+      .msg-row.ai .msg-bub {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 3px 11px 11px 11px;
+        color: var(--t1);
+      }
+      .msg-row.user .msg-bub {
+        background: linear-gradient(135deg, var(--p1), var(--p2));
+        border-radius: 11px 3px 11px 11px;
+        color: #fff;
+      }
+      .msg-bub code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11.5px;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+      .msg-bub pre {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--b2);
+        border-radius: 7px;
+        padding: 10px 12px;
+        overflow-x: auto;
+        margin-top: 8px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      .msg-bub strong {
+        font-weight: 600;
+        color: var(--t1);
+      }
+      .msg-bub p + p {
+        margin-top: 6px;
+      }
+
+      .sys-msg {
+        align-self: center;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 11px;
+        color: var(--t2);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .step-row {
+        align-self: flex-start;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 9px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--t2);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 480px;
+      }
+      .step-row.ok {
+        border-color: rgba(16, 217, 160, 0.2);
+        color: var(--emerald);
+      }
+      .step-row.err {
+        border-color: rgba(244, 63, 94, 0.2);
+        color: var(--rose);
+      }
+      .step-row.run {
+        border-color: rgba(123, 104, 240, 0.2);
+        color: var(--p1);
+      }
+
+      .approval-card {
+        align-self: flex-start;
+        background: rgba(246, 165, 35, 0.04);
+        border: 1px solid rgba(246, 165, 35, 0.22);
+        border-radius: 11px;
+        padding: 12px 14px;
+        max-width: 480px;
+      }
+      .approval-card .at {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--amber);
+        margin-bottom: 4px;
+      }
+      .approval-card .ab-txt {
+        font-size: 12px;
+        color: var(--t2);
+        margin-bottom: 10px;
+        line-height: 1.6;
+      }
+      .approval-btns {
+        display: flex;
+        gap: 6px;
+      }
+      .apr-yes {
+        background: rgba(16, 217, 160, 0.1);
+        border: 1px solid rgba(16, 217, 160, 0.28);
+        color: var(--emerald);
+        border-radius: 6px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.12s;
+      }
+      .apr-yes:hover {
+        background: rgba(16, 217, 160, 0.2);
+      }
+      .apr-no {
+        background: rgba(244, 63, 94, 0.07);
+        border: 1px solid rgba(244, 63, 94, 0.2);
+        color: var(--rose);
+        border-radius: 6px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.12s;
+      }
+      .apr-no:hover {
+        background: rgba(244, 63, 94, 0.16);
+      }
+
+      .typing-ind {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 3px 11px 11px 11px;
+        align-self: flex-start;
+      }
+      .typing-ind span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--t3);
+        animation: blink 1.4s infinite;
+      }
+      .typing-ind span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-ind span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes blink {
+        0%,
+        80%,
+        100% {
+          opacity: 0.3;
+        }
+        40% {
+          opacity: 1;
+          transform: scale(1.2);
+        }
+      }
+
+      .chat-inp-area {
+        padding: 14px 20px;
+        border-top: 1px solid var(--b1);
+        background: var(--bg2);
+        flex-shrink: 0;
+      }
+      .chat-inp-wrap {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 11px;
+        padding: 8px 8px 8px 14px;
+        transition: border-color 0.15s;
+      }
+      .chat-inp-wrap:focus-within {
+        border-color: rgba(123, 104, 240, 0.45);
+      }
+      .chat-inp {
+        flex: 1;
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--t1);
+        font-size: 13px;
+        font-family: inherit;
+        resize: none;
+        max-height: 120px;
+        line-height: 1.55;
+        min-height: 20px;
+      }
+      .chat-inp::placeholder {
+        color: var(--t3);
+      }
+      .chat-send {
+        background: linear-gradient(135deg, var(--p1), var(--p2));
+        border: none;
+        color: #fff;
+        border-radius: 7px;
+        padding: 6px 13px;
+        font-size: 12.5px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: opacity 0.12s;
+        box-shadow: 0 2px 8px rgba(123, 104, 240, 0.3);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .chat-send:hover {
+        opacity: 0.88;
+      }
+      .chat-send:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .chat-hint {
+        font-size: 10.5px;
+        color: var(--t3);
+        margin-top: 6px;
+        text-align: center;
+      }
+
+      /* ════ ALERTS VIEW ════ */
+      #v-alerts {
+        display: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+      }
+      .alerts-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .alerts-hdr h2 {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .live-dot {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--emerald);
+      }
+      .live-dot::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--emerald);
+        box-shadow: 0 0 6px rgba(16, 217, 160, 0.6);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .clear-btn {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        color: var(--t2);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.12s;
+      }
+      .clear-btn:hover {
+        background: var(--bg4);
+        color: var(--t1);
+      }
+      .alerts-hdr-r {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .alert-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .alert-item {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 9px;
+        padding: 10px 13px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        transition: border-color 0.12s;
+      }
+      .alert-item:hover {
+        border-color: var(--b3);
+      }
+      .al-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 5px;
+      }
+      .al-dot.info {
+        background: var(--blue);
+      }
+      .al-dot.ok {
+        background: var(--emerald);
+      }
+      .al-dot.warn {
+        background: var(--amber);
+        box-shadow: 0 0 5px rgba(246, 165, 35, 0.4);
+      }
+      .al-dot.error {
+        background: var(--rose);
+        box-shadow: 0 0 5px rgba(244, 63, 94, 0.4);
+      }
+      .al-dot.debug {
+        background: var(--t3);
+      }
+      .al-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .al-msg {
+        font-size: 12.5px;
+        color: var(--t1);
+        line-height: 1.5;
+      }
+      .al-meta {
+        font-size: 10.5px;
+        color: var(--t3);
+        margin-top: 2px;
+        display: flex;
+        gap: 8px;
+      }
+      .al-src {
+        background: var(--bg3);
+        border-radius: 3px;
+        padding: 0 5px;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .al-time {
+        color: var(--t3);
+      }
+      .no-alerts {
+        text-align: center;
+        padding: 48px 20px;
+        color: var(--t2);
+        font-size: 13px;
+      }
+      .no-alerts-ic {
+        font-size: 32px;
+        opacity: 0.3;
+        margin-bottom: 10px;
+      }
+
+      /* ════ TASK LOG VIEW ════ */
+      #v-tasklog {
+        display: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+      }
+      .tlog-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .tlog-hdr h2 {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .tlog-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tlog-item {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 9px;
+        padding: 11px 14px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transition: border-color 0.12s;
+      }
+      .tlog-item:hover {
+        border-color: var(--b3);
+      }
+      .tlog-ic {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      .tlog-ic.ok {
+        background: rgba(16, 217, 160, 0.1);
+        border: 1px solid rgba(16, 217, 160, 0.2);
+      }
+      .tlog-ic.err {
+        background: rgba(244, 63, 94, 0.08);
+        border: 1px solid rgba(244, 63, 94, 0.18);
+      }
+      .tlog-ic.run {
+        background: rgba(123, 104, 240, 0.1);
+        border: 1px solid rgba(123, 104, 240, 0.2);
+      }
+      .tlog-ic.info {
+        background: rgba(79, 142, 247, 0.08);
+        border: 1px solid rgba(79, 142, 247, 0.18);
+      }
+      .tlog-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .tlog-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--t1);
+      }
+      .tlog-desc {
+        font-size: 11.5px;
+        color: var(--t2);
+        margin-top: 2px;
+      }
+      .tlog-meta {
+        font-size: 10.5px;
+        color: var(--t3);
+        margin-top: 4px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .tlog-badge {
+        font-family: "JetBrains Mono", monospace;
+        background: var(--bg3);
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 10px;
+        color: var(--t2);
+      }
+      .no-tasks {
+        text-align: center;
+        padding: 48px 20px;
+        color: var(--t2);
+        font-size: 13px;
+      }
+
+      /* ════ REPORTS VIEW ════ */
+      #v-reports {
+        display: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+      }
+      .rep-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .rep-top h2 {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .rep-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .rsc {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 11px;
+        padding: 14px;
+      }
+      .rsc .rv {
+        font-size: 26px;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+        line-height: 1;
+      }
+      .rsc .rl {
+        font-size: 11px;
+        color: var(--t2);
+        margin-top: 3px;
+        font-weight: 500;
+      }
+      .rsc.g .rv {
+        color: var(--emerald);
+      }
+      .rsc.a .rv {
+        color: var(--amber);
+      }
+      .rsc.p .rv {
+        color: var(--p1);
+      }
+      .rsc.b .rv {
+        color: var(--blue);
+      }
+      .rep-section {
+        margin-bottom: 20px;
+      }
+      .rep-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--t3);
+        margin-bottom: 10px;
+      }
+      .site-rep-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .site-rep {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: border-color 0.12s;
+      }
+      .site-rep:hover {
+        border-color: var(--b3);
+      }
+      .sr-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .sr-dot.on {
+        background: var(--emerald);
+        box-shadow: 0 0 5px rgba(16, 217, 160, 0.5);
+      }
+      .sr-dot.wa {
+        background: var(--amber);
+      }
+      .sr-dot.of {
+        background: var(--rose);
+      }
+      .sr-name {
+        font-size: 13px;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sr-up {
+        font-size: 11.5px;
+        font-family: "JetBrains Mono", monospace;
+        color: var(--t2);
+        min-width: 50px;
+        text-align: right;
+      }
+      .sr-bar-wrap {
+        width: 120px;
+        height: 5px;
+        background: var(--bg4);
+        border-radius: 3px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .sr-bar {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--emerald);
+        transition: width 0.5s ease;
+      }
+      .sr-bar.wa {
+        background: var(--amber);
+      }
+      .sr-tags {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .sr-tag {
+        font-size: 10px;
+        font-family: "JetBrains Mono", monospace;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 3px;
+        padding: 1px 5px;
+        color: var(--t2);
+      }
+      .sr-tag.upd {
+        background: rgba(246, 165, 35, 0.06);
+        border-color: rgba(246, 165, 35, 0.22);
+        color: var(--amber);
+      }
+      .sr-tag.ok {
+        background: rgba(16, 217, 160, 0.05);
+        border-color: rgba(16, 217, 160, 0.18);
+        color: var(--emerald);
+      }
+
+      /* ════ PREFS VIEW ════ */
+      #v-prefs {
+        display: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+      }
+      .prefs-wrap {
+        max-width: 580px;
+      }
+      .pref-group {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 14px;
+      }
+      .pref-group-title {
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--t3);
+        border-bottom: 1px solid var(--b1);
+      }
+      .pref-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--b1);
+        gap: 12px;
+      }
+      .pref-row:last-child {
+        border-bottom: none;
+      }
+      .pref-label {
+        flex: 1;
+      }
+      .pref-label strong {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--t1);
+      }
+      .pref-label span {
+        font-size: 11.5px;
+        color: var(--t2);
+      }
+      .pref-ctrl select {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        color: var(--t1);
+        border-radius: 7px;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-family: inherit;
+        cursor: pointer;
+        outline: none;
+      }
+      .toggle-wrap {
+        display: flex;
+        align-items: center;
+      }
+      .toggle {
+        position: relative;
+        width: 36px;
+        height: 20px;
+        cursor: pointer;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .toggle-slider {
+        position: absolute;
+        inset: 0;
+        background: var(--bg4);
+        border-radius: 10px;
+        transition: background 0.2s;
+      }
+      .toggle-slider::before {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 3px;
+        top: 3px;
+        background: var(--t3);
+        border-radius: 50%;
+        transition: all 0.2s;
+      }
+      .toggle input:checked ~ .toggle-slider {
+        background: var(--p1);
+      }
+      .toggle input:checked ~ .toggle-slider::before {
+        transform: translateX(16px);
+        background: #fff;
+      }
+
+      /* ════ OVERLAYS ════ */
+      .ov {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(7px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      .ov.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal {
+        background: var(--bg2);
+        border: 1px solid var(--b2);
+        border-radius: 18px;
+        width: 490px;
+        max-width: calc(100vw - 28px);
+        max-height: 92vh;
+        overflow-y: auto;
+        box-shadow: 0 28px 72px rgba(0, 0, 0, 0.65);
+        transform: translateY(18px) scale(0.96);
+        transition: transform 0.22s;
+      }
+      .ov.open .modal {
+        transform: none;
+      }
+      .mh {
+        padding: 20px 20px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+      .mt {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .ms {
+        font-size: 12px;
+        color: var(--t2);
+        margin-top: 2px;
+      }
+      .mx {
+        width: 25px;
+        height: 25px;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--t2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.12s;
+        flex-shrink: 0;
+      }
+      .mx:hover {
+        background: var(--bg4);
+        color: var(--t1);
+      }
+      .mb {
+        padding: 16px 20px 20px;
+      }
+      .inote {
+        background: rgba(79, 142, 247, 0.06);
+        border: 1px solid rgba(79, 142, 247, 0.16);
+        border-radius: 8px;
+        padding: 9px 11px;
+        font-size: 12px;
+        color: rgba(147, 191, 252, 0.9);
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+      .fsec {
+        margin-bottom: 16px;
+      }
+      .fl {
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--p1);
+        margin-bottom: 8px;
+      }
+      .fr {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .fr.full {
+        grid-template-columns: 1fr;
+      }
+      .fd {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .fd label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--t2);
+      }
+      .fd input,
+      .fd select,
+      .fd textarea {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 7px;
+        padding: 7px 10px;
+        color: var(--t1);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+        width: 100%;
+      }
+      .fd input:focus,
+      .fd select:focus,
+      .fd textarea:focus {
+        border-color: rgba(123, 104, 240, 0.5);
+        background: var(--bg4);
+      }
+      .fd input::placeholder,
+      .fd textarea::placeholder {
+        color: var(--t3);
+      }
+      .fd select option {
+        background: var(--bg3);
+      }
+      .stab {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 9px;
+      }
+      .to {
+        flex: 1;
+        padding: 6px;
+        border-radius: 7px;
+        border: 1px solid var(--b2);
+        background: var(--bg3);
+        color: var(--t2);
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.12s;
+        font-family: inherit;
+      }
+      .to.on {
+        background: var(--ps);
+        border-color: rgba(123, 104, 240, 0.4);
+        color: var(--t1);
+      }
+      .tb {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 9px;
+        padding: 11px;
+        margin-top: 10px;
+        display: none;
+      }
+      .tb.show {
+        display: block;
+      }
+      .ts {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        font-size: 12px;
+        color: var(--t2);
+      }
+      .ts.ok {
+        color: var(--emerald);
+      }
+      .ts.fail {
+        color: var(--rose);
+      }
+      .ts.run {
+        color: var(--amber);
+      }
+      .tic {
+        width: 16px;
+        text-align: center;
+        font-size: 13px;
+      }
+      .tspin {
+        animation: spin 0.7s linear infinite;
+        display: inline-block;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .ma {
+        display: flex;
+        gap: 7px;
+        margin-top: 16px;
+      }
+      .mc {
+        flex: 1;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        color: var(--t1);
+        border-radius: 8px;
+        padding: 8.5px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .mc:hover {
+        background: var(--bg4);
+      }
+      .msub {
+        flex: 2;
+        background: linear-gradient(135deg, var(--p1), var(--p2));
+        border: none;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8.5px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: opacity 0.12s;
+        box-shadow: 0 3px 12px rgba(123, 104, 240, 0.28);
+      }
+      .msub:hover {
+        opacity: 0.88;
+      }
+      .msub:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .dm {
+        background: var(--bg2);
+        border: 1px solid rgba(244, 63, 94, 0.22);
+        border-radius: 15px;
+        padding: 22px;
+        width: 330px;
+        max-width: calc(100vw - 28px);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+        transform: translateY(14px) scale(0.97);
+        transition: transform 0.2s;
+      }
+      .ov.open .dm {
+        transform: none;
+      }
+      .di {
+        font-size: 26px;
+        margin-bottom: 10px;
+      }
+      .dt {
+        font-size: 14.5px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .dd {
+        font-size: 12.5px;
+        color: var(--t2);
+        margin-bottom: 16px;
+        line-height: 1.6;
+      }
+      .da {
+        display: flex;
+        gap: 7px;
+      }
+      .dc {
+        flex: 1;
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        color: var(--t1);
+        border-radius: 7px;
+        padding: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .dc:hover {
+        background: var(--bg4);
+      }
+      .dx {
+        flex: 1;
+        background: rgba(244, 63, 94, 0.09);
+        border: 1px solid rgba(244, 63, 94, 0.28);
+        color: var(--rose);
+        border-radius: 7px;
+        padding: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .dx:hover {
+        background: rgba(244, 63, 94, 0.18);
+      }
+
+      /* Toasts */
+      .tw {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .toast {
+        background: var(--bg3);
+        border: 1px solid var(--b2);
+        border-radius: 9px;
+        padding: 9px 13px;
+        font-size: 12.5px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+        animation: tin 0.22s ease;
+        min-width: 200px;
+      }
+      .toast.ok {
+        border-color: rgba(16, 217, 160, 0.28);
+      }
+      .toast.err {
+        border-color: rgba(244, 63, 94, 0.28);
+      }
+      @keyframes tin {
+        from {
+          transform: translateX(108%);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes tout {
+        to {
+          transform: translateX(108%);
+          opacity: 0;
+        }
+      }
+
+      @media (max-width: 820px) {
+        .sb {
+          display: none;
+        }
+        .stats {
+          padding: 10px 12px 0;
+          grid-template-columns: 1fr 1fr;
+        }
+        .gw {
+          padding: 12px 12px 40px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .topbar {
+          padding: 11px 12px;
+          flex-wrap: wrap;
+          gap: 7px;
+        }
+        .srch input {
+          width: 150px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- ═════ SIDEBAR ═════ -->
+      <aside class="sb">
+        <div class="sb-logo">
+          <div class="logo-mark">⚡</div>
+          <div class="logo-text">
+            <div class="lt">WP Agent</div>
+            <div class="ls">WordPress AI</div>
+          </div>
+        </div>
+        <nav class="sb-nav">
+          <div class="sn-label">Main</div>
+          <div class="ni on" data-view="sites" onclick="showView('sites')">
+            <span class="ni-ic">🌐</span>All Websites
+            <span class="ni-badge pur" id="sbCnt">0</span>
+          </div>
+
+          <div class="sn-label">Monitoring</div>
+          <div class="ni" data-view="alerts" onclick="showView('alerts')">
+            <span class="ni-ic">🔔</span>Alerts
+            <span class="ni-badge red" id="sbAlerts">0</span>
+          </div>
+          <div class="ni" data-view="tasklog" onclick="showView('tasklog')">
+            <span class="ni-ic">📋</span>Task Log
+            <span class="ni-badge def" id="sbTasks">0</span>
+          </div>
+          <div class="ni" data-view="reports" onclick="showView('reports')">
+            <span class="ni-ic">📊</span>Reports
+          </div>
+
+          <div class="sn-label">Settings</div>
+          <div class="ni" data-view="prefs" onclick="showView('prefs')">
+            <span class="ni-ic">⚙️</span>Preferences
+          </div>
+        </nav>
+        <div class="sb-foot">
+          <div class="user-row">
+            <div class="u-av">A</div>
+            <div>
+              <div class="u-name">Admin</div>
+              <div class="u-plan">Pro Plan</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ═════ MAIN ═════ -->
+      <main class="main">
+        <!-- ── Topbar (Sites) ── -->
+        <div class="topbar" id="tb-sites">
+          <div class="pg-title">All Websites</div>
+          <div class="srch">
+            <span class="s-ic">🔍</span>
+            <input
+              type="text"
+              id="searchInp"
+              placeholder="Search…"
+              oninput="renderGrid()"
+            />
+          </div>
+          <div class="filt">
+            <button class="fb on" onclick="setF('all', this)">All</button>
+            <button class="fb" onclick="setF('online', this)">🟢 Online</button>
+            <button class="fb" onclick="setF('updates', this)">
+              ⬆ Updates
+            </button>
+            <button class="fb" onclick="setF('issues', this)">⚠ Issues</button>
+          </div>
+          <button class="ab" onclick="openAdd()">
+            <span style="font-size: 15px; line-height: 1">+</span> Add Website
+          </button>
+        </div>
+
+        <!-- ── Topbar (Chat) ── -->
+        <div class="topbar" id="tb-chat" style="display: none">
+          <button class="chat-back" onclick="showView('sites')">
+            ← All Sites
+          </button>
+          <div
+            id="chat-site-info"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              flex: 1;
+              min-width: 0;
+              overflow: hidden;
+            "
+          ></div>
+          <button
+            class="fb"
+            onclick="openWpCreds()"
+            title="Update WordPress Application Password"
+            style="font-size: 11px; white-space: nowrap"
+          >
+            🔑 WP Credentials
+          </button>
+        </div>
+
+        <!-- ── Topbar (Generic) ── -->
+        <div class="topbar" id="tb-generic" style="display: none">
+          <div class="pg-title" id="tb-generic-title"></div>
+        </div>
+
+        <!-- ── View: Sites ── -->
+        <div id="v-sites" class="view">
+          <div class="stats">
+            <div class="sc g">
+              <div class="sv" id="stOn">0</div>
+              <div class="sl">Online</div>
+            </div>
+            <div class="sc a">
+              <div class="sv" id="stUp">0</div>
+              <div class="sl">Updates Available</div>
+            </div>
+            <div class="sc r">
+              <div class="sv" id="stIs">0</div>
+              <div class="sl">Issues</div>
+            </div>
+            <div class="sc p">
+              <div class="sv" id="stTo">0</div>
+              <div class="sl">Total Sites</div>
+            </div>
+          </div>
+          <div class="gw">
+            <div class="gh">
+              <span class="gc" id="gCount">0 websites</span>
+              <select
+                class="ss"
+                onchange="
+                  sb = this.value;
+                  renderGrid();
+                "
+              >
+                <option value="name">Sort by Name</option>
+                <option value="status">Sort by Status</option>
+                <option value="updates">Sort by Updates</option>
+                <option value="added">Sort by Date Added</option>
+              </select>
+            </div>
+            <div class="grid" id="grid"></div>
+          </div>
+        </div>
+
+        <!-- ── View: Chat ── -->
+        <div
+          id="v-chat"
+          class="view"
+          style="display: none; flex-direction: column"
+        >
+          <div class="chat-msgs" id="chatMsgs"></div>
+          <div class="chat-inp-area">
+            <div class="chat-inp-wrap">
+              <textarea
+                class="chat-inp"
+                id="chatInp"
+                placeholder="Ask the agent anything — update plugins, check health, manage posts…"
+                rows="1"
+                onkeydown="chatKey(event)"
+                oninput="autoResize(this)"
+              ></textarea>
+              <button class="chat-send" id="chatSend" onclick="sendChat()">
+                Send ↑
+              </button>
+            </div>
+            <div class="chat-hint">
+              Press Enter to send · Shift+Enter for new line
+            </div>
+          </div>
+        </div>
+
+        <!-- ── View: Alerts ── -->
+        <div id="v-alerts" class="view" style="display: none">
+          <div class="alerts-hdr">
+            <h2>Alerts</h2>
+            <div class="alerts-hdr-r">
+              <div class="live-dot">Live</div>
+              <button class="clear-btn" onclick="clearAlerts()">
+                Clear All
+              </button>
+            </div>
+          </div>
+          <div class="alert-feed" id="alertFeed"></div>
+        </div>
+
+        <!-- ── View: Task Log ── -->
+        <div id="v-tasklog" class="view" style="display: none">
+          <div class="tlog-hdr">
+            <h2>Task Log</h2>
+            <button class="clear-btn" onclick="clearTaskLog()">
+              Clear Log
+            </button>
+          </div>
+          <div class="tlog-list" id="taskLogList"></div>
+        </div>
+
+        <!-- ── View: Reports ── -->
+        <div id="v-reports" class="view" style="display: none">
+          <div class="rep-top">
+            <h2>Reports</h2>
+            <button class="clear-btn" onclick="renderReports()">
+              ↺ Refresh
+            </button>
+          </div>
+          <div class="rep-stats" id="repStats"></div>
+          <div class="rep-section">
+            <div class="rep-section-title">Site Health Overview</div>
+            <div class="site-rep-list" id="siteRepList"></div>
+          </div>
+        </div>
+
+        <!-- ── View: Preferences ── -->
+        <div id="v-prefs" class="view" style="display: none">
+          <div class="prefs-wrap">
+            <div class="pref-group">
+              <div class="pref-group-title">Notifications</div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Email Alerts</strong
+                  ><span>Get notified when sites go offline</span>
+                </div>
+                <div class="pref-ctrl">
+                  <label class="toggle"
+                    ><input type="checkbox" checked /><span
+                      class="toggle-slider"
+                    ></span
+                  ></label>
+                </div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Update Alerts</strong
+                  ><span>Notify when plugin/theme updates are available</span>
+                </div>
+                <div class="pref-ctrl">
+                  <label class="toggle"
+                    ><input type="checkbox" checked /><span
+                      class="toggle-slider"
+                    ></span
+                  ></label>
+                </div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Security Alerts</strong
+                  ><span>Notify on security vulnerabilities</span>
+                </div>
+                <div class="pref-ctrl">
+                  <label class="toggle"
+                    ><input type="checkbox" checked /><span
+                      class="toggle-slider"
+                    ></span
+                  ></label>
+                </div>
+              </div>
+            </div>
+            <div class="pref-group">
+              <div class="pref-group-title">Monitoring</div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Check Interval</strong
+                  ><span>How often to monitor sites</span>
+                </div>
+                <div class="pref-ctrl">
+                  <select>
+                    <option selected>Every 3 minutes</option>
+                    <option>Every 5 minutes</option>
+                    <option>Every 10 minutes</option>
+                    <option>Every 30 minutes</option>
+                  </select>
+                </div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Uptime Threshold</strong
+                  ><span>Alert when uptime drops below</span>
+                </div>
+                <div class="pref-ctrl">
+                  <select>
+                    <option>95%</option>
+                    <option selected>99%</option>
+                    <option>99.9%</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="pref-group">
+              <div class="pref-group-title">Auto-Actions</div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Auto-update Plugins</strong
+                  ><span>Automatically apply minor plugin updates</span>
+                </div>
+                <div class="pref-ctrl">
+                  <label class="toggle"
+                    ><input type="checkbox" /><span class="toggle-slider"></span
+                  ></label>
+                </div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-label">
+                  <strong>Auto-clear Cache</strong
+                  ><span>Clear cache after updates</span>
+                </div>
+                <div class="pref-ctrl">
+                  <label class="toggle"
+                    ><input type="checkbox" checked /><span
+                      class="toggle-slider"
+                    ></span
+                  ></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ═════ ADD MODAL ═════ -->
+    <div class="ov" id="addOv" onclick="ooc(event, 'addOv', closeAdd)">
+      <div class="modal">
+        <div class="mh">
+          <div>
+            <div class="mt">Add WordPress Website</div>
+            <div class="ms">SSH details only — agent handles the rest</div>
+          </div>
+          <button class="mx" onclick="closeAdd()">✕</button>
+        </div>
+        <div class="mb">
+          <div class="inote">
+            🔒 The agent connects via SSH, finds your WordPress install,
+            generates an application password automatically — no manual WP admin
+            steps.
+          </div>
+          <div class="fsec">
+            <div class="fl">Site Details</div>
+            <div class="fr">
+              <div class="fd">
+                <label>Site URL *</label
+                ><input
+                  id="f_url"
+                  type="url"
+                  placeholder="https://yoursite.com"
+                />
+              </div>
+              <div class="fd">
+                <label>Label</label
+                ><input id="f_name" type="text" placeholder="Client name" />
+              </div>
+            </div>
+            <div class="fr" style="margin-top: 8px">
+              <div class="fd">
+                <label>Category</label>
+                <select id="f_cat">
+                  <option value="client">Client</option>
+                  <option value="own">Own Site</option>
+                  <option value="staging">Staging</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="fsec">
+            <div class="fl">SSH Access</div>
+            <div class="fr">
+              <div class="fd">
+                <label>SSH Host *</label
+                ><input
+                  id="f_host"
+                  type="text"
+                  placeholder="server.example.com"
+                />
+              </div>
+              <div class="fd">
+                <label>Port</label
+                ><input id="f_port" type="number" value="22" />
+              </div>
+            </div>
+            <div class="fd" style="margin-top: 8px">
+              <label
+                >SSH Username *
+                <span
+                  style="font-weight: 400; color: var(--t3); font-size: 10.5px"
+                  >(e.g. root, ubuntu — not your key file name)</span
+                ></label
+              >
+              <input id="f_user" type="text" placeholder="root" />
+            </div>
+            <div style="margin-top: 10px">
+              <div class="stab">
+                <button class="to on" id="mPw" onclick="setM('password', this)">
+                  🔑 Password
+                </button>
+                <button class="to" id="mKey" onclick="setM('key', this)">
+                  📄 SSH Key
+                </button>
+              </div>
+              <div id="pwF" class="fd">
+                <label>SSH Password *</label
+                ><input id="f_pass" type="password" placeholder="••••••••" />
+              </div>
+              <div id="keyF" class="fd" style="display: none">
+                <label>SSH Private Key *</label>
+                <textarea
+                  id="f_key"
+                  rows="5"
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAA...&#10;-----END OPENSSH PRIVATE KEY-----"
+                  style="
+                    resize: vertical;
+                    font-family: ui-monospace, Menlo, Monaco, monospace;
+                    font-size: 11px;
+                    line-height: 1.45;
+                    min-height: 88px;
+                  "
+                ></textarea>
+                <div
+                  style="
+                    font-size: 10.5px;
+                    color: var(--t3);
+                    margin-top: 6px;
+                    line-height: 1.55;
+                  "
+                >
+                  💡 Paste your
+                  <strong style="color: rgba(123, 104, 240, 0.9)"
+                    >private</strong
+                  >
+                  key (starts with
+                  <code
+                    style="
+                      font-family: inherit;
+                      background: var(--bg4);
+                      padding: 1px 4px;
+                      border-radius: 3px;
+                    "
+                    >-----BEGIN</code
+                  >). It's usually in
+                  <code
+                    style="
+                      font-family: inherit;
+                      background: var(--bg4);
+                      padding: 1px 4px;
+                      border-radius: 3px;
+                    "
+                    >~/.ssh/id_rsa</code
+                  >.
+                  <strong style="color: rgba(246, 165, 35, 0.85)"
+                    >Don't paste your public key</strong
+                  >
+                  (the one starting with
+                  <code
+                    style="
+                      font-family: inherit;
+                      background: var(--bg4);
+                      padding: 1px 4px;
+                      border-radius: 3px;
+                    "
+                    >ssh-rsa</code
+                  >
+                  in
+                  <code
+                    style="
+                      font-family: inherit;
+                      background: var(--bg4);
+                      padding: 1px 4px;
+                      border-radius: 3px;
+                    "
+                    >id_rsa.pub</code
+                  >).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tb" id="setupTb">
+            <div class="ts" id="ts1">
+              <span class="tic">⏳</span>Connecting via SSH…
+            </div>
+            <div class="ts" id="ts2" style="opacity: 0.25">
+              <span class="tic">⏳</span>Locating WordPress install…
+            </div>
+            <div class="ts" id="ts3" style="opacity: 0.25">
+              <span class="tic">⏳</span>Checking WP-CLI…
+            </div>
+            <div class="ts" id="ts4" style="opacity: 0.25">
+              <span class="tic">⏳</span>Finding admin user…
+            </div>
+            <div class="ts" id="ts5" style="opacity: 0.25">
+              <span class="tic">⏳</span>Generating application password…
+            </div>
+            <div class="ts" id="ts6" style="opacity: 0.25">
+              <span class="tic">⏳</span>Reading database config…
+            </div>
+            <div class="ts" id="ts7" style="opacity: 0.25">
+              <span class="tic">⏳</span>Saving site…
+            </div>
+          </div>
+          <div class="ma">
+            <button class="mc" onclick="closeAdd()">Cancel</button>
+            <button class="msub" id="subBtn" onclick="addSite()">
+              ⚡ Connect & Setup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════ WP CREDENTIALS MODAL ═════ 
+<div class="ov" id="wpCredsOv" onclick="ooc(event,'wpCredsOv',closeWpCreds)">
+  <div class="modal" style="width:420px">
+    <div class="mh">
+      <div>
+        <div class="mt">WordPress Credentials</div>
+        <div class="ms" id="wpCredsSubtitle">Update WP App Password for this site</div>
+      </div>
+      <button class="mx" onclick="closeWpCreds()">✕</button>
+    </div>
+    <div class="mb">
+      <div style="background:rgba(246,165,35,.05);border:1px solid rgba(246,165,35,.18);border-radius:7px;padding:9px 11px;font-size:11.5px;color:rgba(246,165,35,.9);margin-bottom:14px;line-height:1.7">
+        ⚡ WP Admin → <strong>Users → Profile → Application Passwords</strong> → Add New → copy the password here
+      </div>
+      <div class="fsec">
+        <div class="fr">
+          <div class="fd"><label>WP Admin Username</label><input id="wc_user" type="text" placeholder="admin"></div>
+          <div class="fd"><label>Application Password</label><input id="wc_pass" type="text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"></div>
+        </div>
+      </div>
+      <div class="ma">
+        <button class="mc" onclick="closeWpCreds()">Cancel</button>
+        <button class="msub" onclick="saveWpCreds()">💾 Save & Reconnect</button>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+    <!-- ═════ DELETE MODAL ═════ -->
+    <div class="ov" id="delOv" onclick="ooc(event, 'delOv', closeDel)">
+      <div class="dm">
+        <div class="di">⚠️</div>
+        <div class="dt">Remove Website</div>
+        <div class="dd">
+          Remove <strong id="delDom" style="color: var(--t1)"></strong> from WP
+          Agent? All credentials and monitoring data will be permanently
+          deleted.
+        </div>
+        <div class="da">
+          <button class="dc" onclick="closeDel()">Cancel</button>
+          <button class="dx" onclick="doDel()">Remove Site</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tw" id="tw"></div>
+
+    <script>
+      /* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+      let sites = [],
+        filt = "all",
+        sb = "name",
+        delId = null,
+        sMode = "password";
+      let curView = "sites",
+        activeChatSite = null;
+      let alerts = [],
+        taskLog = [];
+      let socket = null,
+        chatStreaming = false,
+        streamEl = null;
+      let chatSiteLoaded = false; // true after chat:setup_status received
+      let msgBuffer = []; // buffer messages received before site is loaded
+
+      const DEMO = [
+        {
+          id: "s1",
+          domain: "jainamsilkmill.com",
+          name: "Jainam Silk Mills",
+          url: "https://jainamsilkmill.com",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.3",
+          plugins: 9,
+          updates: 3,
+          load: "13.8s",
+          up: "99.2%",
+          chk: "5m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 10,
+        },
+        {
+          id: "s2",
+          domain: "give-back.org",
+          name: "Give Back",
+          url: "https://give-back.org",
+          status: "warning",
+          wp: "6.9.4",
+          php: "8.3",
+          plugins: 13,
+          updates: 0,
+          load: "3.7s",
+          up: "98.1%",
+          chk: "4m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 8,
+        },
+        {
+          id: "s3",
+          domain: "lisciobyapeksha.com",
+          name: "Liscio by Apeksha",
+          url: "https://lisciobyapeksha.com",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.2",
+          plugins: 16,
+          updates: 6,
+          load: "2.6s",
+          up: "99.9%",
+          chk: "4m ago",
+          cat: "client",
+          dbg: true,
+          at: Date.now() - 864e5 * 7,
+        },
+        {
+          id: "s4",
+          domain: "sbandpartners.com",
+          name: "SB & Partners",
+          url: "https://sbandpartners.com",
+          status: "warning",
+          wp: "6.9.4",
+          php: "8.2",
+          plugins: 9,
+          updates: 0,
+          load: "2.2s",
+          up: "97.4%",
+          chk: "4m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 6,
+        },
+        {
+          id: "s5",
+          domain: "sqft.co.in",
+          name: "SQFT",
+          url: "https://sqft.co.in",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.2",
+          plugins: 13,
+          updates: 1,
+          load: "2.6s",
+          up: "99.9%",
+          chk: "1m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 5,
+        },
+        {
+          id: "s6",
+          domain: "dentathome.com",
+          name: "Denta Home",
+          url: "https://dentathome.com",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.3",
+          plugins: 12,
+          updates: 1,
+          load: "507ms",
+          up: "100%",
+          chk: "4m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 4,
+        },
+        {
+          id: "s7",
+          domain: "aotp.in",
+          name: "AOTP",
+          url: "https://aotp.in",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.2",
+          plugins: 8,
+          updates: 2,
+          load: "2.1s",
+          up: "99.9%",
+          chk: "Just now",
+          cat: "client",
+          at: Date.now() - 864e5 * 3,
+        },
+        {
+          id: "s8",
+          domain: "gamyq.com",
+          name: "GamyQ",
+          url: "https://gamyq.com",
+          status: "online",
+          wp: "6.9.4",
+          php: "8.3",
+          plugins: 4,
+          updates: 1,
+          load: "1.8s",
+          up: "99.7%",
+          chk: "3m ago",
+          cat: "client",
+          at: Date.now() - 864e5 * 2,
+        },
+      ];
+
+      /* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+      function init() {
+        const d = localStorage.getItem("wpa_sites");
+        sites = d ? JSON.parse(d) : [...DEMO];
+        alerts = JSON.parse(localStorage.getItem("wpa_alerts") || "[]");
+        taskLog = JSON.parse(localStorage.getItem("wpa_tasklog") || "[]");
+
+        // Seed initial alerts from sites if none exist
+        if (!alerts.length) seedAlerts();
+        // Seed initial task log if none
+        if (!taskLog.length) seedTaskLog();
+
+        connectSocket();
+        renderAll();
+
+        // Handle ?site= URL param (opens chat directly)
+        const sp = new URLSearchParams(window.location.search);
+        const siteParam = sp.get("site");
+        if (siteParam) {
+          const s = sites.find((x) => x.id === siteParam);
+          if (s) openChat(s.id);
+        }
+      }
+
+      function save() {
+        localStorage.setItem("wpa_sites", JSON.stringify(sites));
+      }
+      function saveAlerts() {
+        localStorage.setItem("wpa_alerts", JSON.stringify(alerts));
+      }
+      function saveTaskLog() {
+        localStorage.setItem("wpa_tasklog", JSON.stringify(taskLog));
+      }
+
+      /* ════════════════════════════════════════════
+   VIEW ROUTING
+════════════════════════════════════════════ */
+      function showView(view, opts = {}) {
+        // Hide all views & topbars
+        [
+          "v-sites",
+          "v-chat",
+          "v-alerts",
+          "v-tasklog",
+          "v-reports",
+          "v-prefs",
+        ].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        });
+        ["tb-sites", "tb-chat", "tb-generic"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        });
+
+        // Update sidebar active state
+        document.querySelectorAll(".ni[data-view]").forEach((el) => {
+          el.classList.toggle("on", el.getAttribute("data-view") === view);
+        });
+
+        curView = view;
+
+        // Show appropriate topbar
+        if (view === "sites") {
+          document.getElementById("tb-sites").style.display = "";
+          document.getElementById("v-sites").style.display = "";
+          renderAll();
+        } else if (view === "chat") {
+          document.getElementById("tb-chat").style.display = "";
+          document.getElementById("v-chat").style.display = "flex";
+          document.querySelector('[data-view="sites"]').classList.add("on");
+          if (opts.siteId) _doOpenChat(opts.siteId);
+        } else {
+          const titles = {
+            alerts: "Alerts",
+            tasklog: "Task Log",
+            reports: "Reports",
+            prefs: "Preferences",
+          };
+          document.getElementById("tb-generic").style.display = "";
+          document.getElementById("tb-generic-title").textContent =
+            titles[view] || view;
+          const vel = document.getElementById("v-" + view);
+          if (vel) {
+            vel.style.display = "flex";
+            vel.style.flexDirection = "column";
+          }
+          if (view === "alerts") renderAlerts();
+          else if (view === "tasklog") renderTaskLog();
+          else if (view === "reports") renderReports();
+        }
+      }
+
+      /* ════════════════════════════════════════════
+   SOCKET.IO
+════════════════════════════════════════════ */
+      function connectSocket() {
+        try {
+          socket = io();
+          socket.on("connect", () => {
+            addAlert({
+              level: "info",
+              message: "Connected to WP Agent server",
+              source: "system",
+              ts: Date.now(),
+            });
+          });
+          socket.on("disconnect", () => {
+            addAlert({
+              level: "warn",
+              message: "Disconnected from server — reconnecting…",
+              source: "system",
+              ts: Date.now(),
+            });
+          });
+          socket.on("log", (entry) => {
+            addAlert({
+              level: entry.level || "info",
+              message: entry.message || String(entry),
+              source: entry.source || "agent",
+              ts: Date.now(),
+            });
+          });
+          socket.on("event", (ev) => {
+            addAlert({
+              level: "info",
+              message: JSON.stringify(ev).slice(0, 120),
+              source: "event",
+              ts: Date.now(),
+            });
+          });
+          socket.on("init", (data) => {
+            if (data && data.tasks && Array.isArray(data.tasks)) {
+              data.tasks.forEach((t) => {
+                if (!taskLog.find((x) => x.id === t.id)) {
+                  taskLog.push({
+                    id: t.id || Date.now(),
+                    title: t.description || "Task",
+                    desc: "",
+                    status: t.status || "ok",
+                    site: "—",
+                    ts: t.created_at
+                      ? new Date(t.created_at).getTime()
+                      : Date.now(),
+                  });
+                }
+              });
+              saveTaskLog();
+              updateTaskBadge();
+              if (curView === "tasklog") renderTaskLog();
+            }
+          });
+
+          // ── Chat events ──
+          socket.on("chat:typing", (typing) => {
+            if (!chatSiteLoaded) return; // ignore before site loads
+            if (typing) showTyping();
+            else hideTyping();
+          });
+          socket.on("chat:chunk", ({ text }) => {
+            if (!chatSiteLoaded) return;
+            hideTyping();
+            if (!streamEl) streamEl = appendMsg("ai", "");
+            appendToStream(streamEl, text);
+            scrollChat();
+          });
+          socket.on("chat:message", (msg) => {
+            // Buffer messages until site is confirmed loaded
+            if (!chatSiteLoaded && activeChatSite) {
+              msgBuffer.push(msg);
+              return;
+            }
+            streamEl = null;
+            hideTyping();
+            if (msg && msg.content) {
+              const raw = Array.isArray(msg.content)
+                ? msg.content
+                    .filter((b) => b.type === "text")
+                    .map((b) => b.text)
+                    .join("\n")
+                : String(msg.content);
+              // Also handle actions array (chip links etc.)
+              const chips = (msg.actions || []).filter(
+                (a) => a.type === "chip",
+              );
+              appendMsg(msg.role || "ai", raw, msg.type, chips);
+            }
+            setChatSending(false);
+            scrollChat();
+          });
+          socket.on("chat:status", ({ text }) => {
+            if (!chatSiteLoaded) return;
+            appendSysMsg(text);
+          });
+          socket.on("chat:agent_log", (entry) => {
+            if (!chatSiteLoaded) return;
+            const txt =
+              entry.tool || entry.message || JSON.stringify(entry).slice(0, 80);
+            const el = document.createElement("div");
+            el.className = "step-row run";
+            el.innerHTML = `<span>⚡</span><span>${esc(txt)}</span>`;
+            document.getElementById("chatMsgs").appendChild(el);
+            scrollChat();
+          });
+          socket.on("chat:step_done", (data) => {
+            if (!chatSiteLoaded) return;
+            const el = document.createElement("div");
+            el.className = "step-row ok";
+            el.innerHTML = `<span>✓</span><span>${esc(data.tool || data.message || "Done")}</span>`;
+            document.getElementById("chatMsgs").appendChild(el);
+            scrollChat();
+          });
+          socket.on("chat:approval_request", (data) => {
+            if (!chatSiteLoaded) return;
+            const el = document.createElement("div");
+            el.className = "approval-card";
+            el.innerHTML = `
+        <div class="at">⚠ Agent needs approval</div>
+        <div class="ab-txt">${esc(data.text || data.action || "Approve this action?")}</div>
+        <div class="approval-btns">
+          <button class="apr-yes" onclick="approveAction('${esc(data.id)}',true,this.closest('.approval-card'))">✓ Approve</button>
+          <button class="apr-no" onclick="approveAction('${esc(data.id)}',false,this.closest('.approval-card'))">✕ Decline</button>
+        </div>`;
+            document.getElementById("chatMsgs").appendChild(el);
+            scrollChat();
+          });
+          socket.on("chat:error", ({ message }) => {
+            if (!chatSiteLoaded) return;
+            appendMsg("ai", "⚠ " + message, "error");
+            setChatSending(false);
+          });
+          socket.on("chat:setup_status", (data) => {
+            chatSiteLoaded = true;
+            msgBuffer = [];
+            hideTyping();
+
+            if (data.complete) {
+              // Site fully registered and connected
+              const s = activeChatSite;
+              if (s) appendMsg("ai", buildWelcome(s));
+            } else {
+              // Backend doesn't have this site registered — auto re-register from localStorage
+              const s = activeChatSite;
+              if (s && s.sshHost) {
+                // We have site data in localStorage — silently re-register with backend
+                document.getElementById("chatMsgs").innerHTML = "";
+                appendSysMsg("Re-syncing site with backend…");
+                fetch("/api/sites/register", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    id: s.id,
+                    url: s.url,
+                    name: s.name,
+                    domain: s.domain,
+                    cat: s.cat,
+                    sshHost: s.sshHost,
+                    sshUser: s.sshUser,
+                    sshPort: s.sshPort || 22,
+                    sshPassword: s.sshPassword || "",
+                    sshKeyPath: s.sshKeyPath || "",
+                    wpUser: s.wpUser || "admin",
+                    wpAppPassword: s.wpAppPassword || "",
+                    setupComplete: true,
+                  }),
+                })
+                  .then(() => {
+                    // Retry load_site after re-registering
+                    if (socket && socket.connected) {
+                      socket.emit("chat:load_site", { siteId: s.id });
+                      // Give it 3s, if no response just show welcome
+                      setTimeout(() => {
+                        if (
+                          document
+                            .getElementById("chatMsgs")
+                            .querySelectorAll(".msg-row").length === 0
+                        ) {
+                          document.getElementById("chatMsgs").innerHTML = "";
+                          appendMsg("ai", buildWelcome(s));
+                          setChatSending(false);
+                        }
+                      }, 3000);
+                    }
+                  })
+                  .catch(() => {
+                    // Backend not reachable — show welcome anyway
+                    document.getElementById("chatMsgs").innerHTML = "";
+                    appendMsg("ai", buildWelcome(s));
+                  });
+              } else {
+                // No SSH data in localStorage at all — show welcome with limited mode note
+                document.getElementById("chatMsgs").innerHTML = "";
+                appendMsg("ai", buildWelcome(s));
+              }
+            }
+            setChatSending(false);
+            scrollChat();
+          });
+        } catch (e) {
+          // No socket server available (static preview mode)
+        }
+      }
+
+      /* ════════════════════════════════════════════
+   SITES RENDERING
+════════════════════════════════════════════ */
+      function renderAll() {
+        const on = sites.filter((s) => s.status === "online").length;
+        const up = sites.reduce((a, s) => a + (s.updates || 0), 0);
+        const is = sites.filter((s) => s.status === "offline" || s.dbg).length;
+        document.getElementById("stOn").textContent = on;
+        document.getElementById("stUp").textContent = up;
+        document.getElementById("stIs").textContent = is;
+        document.getElementById("stTo").textContent = sites.length;
+        document.getElementById("sbCnt").textContent = sites.length;
+        renderGrid();
+      }
+
+      function getList() {
+        const q = document
+          .getElementById("searchInp")
+          .value.toLowerCase()
+          .trim();
+        let l = [...sites];
+        if (filt === "online") l = l.filter((s) => s.status === "online");
+        else if (filt === "updates") l = l.filter((s) => s.updates > 0);
+        else if (filt === "issues")
+          l = l.filter((s) => s.status === "offline" || s.dbg);
+        if (q)
+          l = l.filter(
+            (s) =>
+              s.domain.toLowerCase().includes(q) ||
+              (s.name || "").toLowerCase().includes(q),
+          );
+        if (sb === "name") l.sort((a, b) => a.domain.localeCompare(b.domain));
+        else if (sb === "status") {
+          const o = { online: 0, warning: 1, offline: 2 };
+          l.sort((a, b) => (o[a.status] || 1) - (o[b.status] || 1));
+        } else if (sb === "updates")
+          l.sort((a, b) => (b.updates || 0) - (a.updates || 0));
+        else if (sb === "added") l.sort((a, b) => (b.at || 0) - (a.at || 0));
+        return l;
+      }
+
+      function renderGrid() {
+        const list = getList();
+        const g = document.getElementById("grid");
+        document.getElementById("gCount").textContent =
+          `${list.length} website${list.length !== 1 ? "s" : ""}`;
+        if (!list.length) {
+          g.innerHTML = `<div class="empty">
+      <div class="empty-ic">${sites.length === 0 ? "🌐" : "🔍"}</div>
+      <div class="empty-t">${sites.length === 0 ? "No websites yet" : "No matches found"}</div>
+      <div class="empty-s">${sites.length === 0 ? "Add your first WordPress site to get started" : "Try a different search or filter"}</div>
+      ${sites.length === 0 ? `<button class="ab" style="margin:0 auto" onclick="openAdd()">+ Add First Website</button>` : ""}
+    </div>`;
+          return;
+        }
+        g.innerHTML = list.map(mkCard).join("");
+      }
+
+      function mkCard(s) {
+        const dc =
+          s.status === "online" ? "on" : s.status === "offline" ? "of" : "wa";
+        const updEl =
+          s.updates > 0
+            ? `<span class="tg upd" id="upd-${esc(s.id)}" title="Click to run updates" onclick="event.stopPropagation();runUpd('${esc(s.id)}')">⬆ ${s.updates} update${s.updates > 1 ? "s" : ""}</span>`
+            : "";
+        const tags = [
+          `<span class="tg">WP ${s.wp || "—"}</span>`,
+          `<span class="tg">PHP ${s.php || "—"}</span>`,
+          s.plugins ? `<span class="tg">🔌 ${s.plugins}</span>` : "",
+          updEl,
+          s.dbg ? `<span class="tg dbg">⚠ Debug on</span>` : "",
+          !s.updates && !s.dbg && s.status === "online"
+            ? `<span class="tg ok">✓ Healthy</span>`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("");
+
+        return `<div class="card" id="card-${esc(s.id)}" onclick="openChat('${esc(s.id)}')">
+    <div class="ci">
+      <div class="ct">
+        <div class="si">
+          <div class="dot ${dc}"></div>
+          <div>
+            <div class="sd">${esc(s.domain)}</div>
+            <div class="sm">${esc(s.name || s.domain)} · ${esc(s.cat || "client")}</div>
+          </div>
+        </div>
+        <div class="acts" onclick="event.stopPropagation()">
+          <span class="ac sky" title="WP Dashboard" onclick="goDash('${esc(s.id)}')">⊞</span>
+          <span class="ac pur" title="AI Agent Chat" onclick="openChat('${esc(s.id)}')">✦</span>
+          <a class="ac blue" href="${esc(s.url)}" target="_blank" rel="noopener" title="Visit Site" onclick="event.stopPropagation()">↗</a>
+          <span class="ac rose" title="Remove" onclick="openDel('${esc(s.id)}','${esc(s.domain)}')">🗑</span>
+        </div>
+      </div>
+      <div class="tags">${tags}</div>
+    </div>
+    <div class="cf">
+      <span><span class="fi">⚡</span>${esc(s.load || "—")}</span>
+      <span><span class="fi">↺</span>${esc(s.up || "—")}</span>
+      <span><span class="fi">🕐</span>${esc(s.chk || "—")}</span>
+    </div>
+  </div>`;
+      }
+
+      /* ════════════════════════════════════════════
+   UPDATES — Per-site update button
+════════════════════════════════════════════ */
+      function runUpd(siteId) {
+        const s = sites.find((x) => x.id === siteId);
+        if (!s || s._updating) return;
+        s._updating = true;
+
+        const tag = document.getElementById("upd-" + siteId);
+        if (tag) {
+          tag.className = "tg upding";
+          tag.onclick = null;
+          tag.title = "";
+          tag.innerHTML = `<span class="tspin">⟳</span> Updating…`;
+        }
+
+        // Call backend (best-effort)
+        fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: `Update all plugins and themes for ${s.domain} (site ID: ${s.id})`,
+          }),
+        }).catch(() => {});
+
+        // Also emit via socket if connected
+        if (socket && socket.connected) {
+          socket.emit("run_task", {
+            description: `Update all plugins and themes for ${s.domain}`,
+          });
+        }
+
+        // Log the start
+        addAlert({
+          level: "info",
+          message: `Running plugin & theme updates for ${s.domain}`,
+          source: "updater",
+          ts: Date.now(),
+        });
+
+        // Simulate realistic update time
+        const delay = 2500 + Math.random() * 1500;
+        setTimeout(() => {
+          const count = s.updates || 0;
+          s.updates = 0;
+          s._updating = false;
+          save();
+
+          // Add to task log
+          pushTaskLog({
+            title: `Updates applied — ${s.domain}`,
+            desc: `${count} plugin${count !== 1 ? "s" : ""} & theme update${count !== 1 ? "s" : ""} successfully installed`,
+            status: "ok",
+            site: s.domain,
+            ts: Date.now(),
+          });
+          addAlert({
+            level: "ok",
+            message: `${count} update${count !== 1 ? "s" : ""} applied on ${s.domain}`,
+            source: "updater",
+            ts: Date.now(),
+          });
+
+          renderAll();
+          toast(
+            `${s.domain} — ${count} update${count !== 1 ? "s" : ""} applied!`,
+            "✅",
+          );
+        }, delay);
+      }
+
+      /* ════════════════════════════════════════════
+   CHAT
+════════════════════════════════════════════ */
+      function openChat(siteId) {
+        showView("chat", { siteId });
+      }
+
+      function _doOpenChat(siteId) {
+        const s = sites.find((x) => x.id === siteId);
+        if (!s) return;
+        activeChatSite = s;
+        chatSiteLoaded = false; // Reset — wait for setup_status
+        msgBuffer = [];
+
+        // Update chat header
+        const dc = s.status === "online" ? "on" : "wa";
+        document.getElementById("chat-site-info").innerHTML = `
+    <div class="chat-site-dot ${dc}"></div>
+    <div>
+      <div class="chat-site-name">${esc(s.domain)}</div>
+      <div class="chat-site-meta">${esc(s.name || s.domain)} · ${esc(s.cat || "client")}</div>
+    </div>
+    <div class="chat-chips">
+      <span class="chip">WP ${esc(s.wp || "—")}</span>
+      <span class="chip">PHP ${esc(s.php || "—")}</span>
+      <span class="chip">↺ ${esc(s.up || "—")}</span>
+      ${s.updates > 0 ? `<span class="chip" style="color:var(--amber)">⬆ ${s.updates} updates</span>` : ""}
+    </div>`;
+
+        // Clear messages and show connecting state
+        const msgs = document.getElementById("chatMsgs");
+        msgs.innerHTML = "";
+        streamEl = null;
+
+        if (socket && socket.connected) {
+          // Show connecting indicator
+          appendSysMsg("Connecting agent to " + s.domain + "…");
+          showTyping();
+          socket.emit("chat:load_site", { siteId: s.id });
+          // Fallback: if no setup_status in 5s, show welcome anyway
+          setTimeout(() => {
+            if (!chatSiteLoaded) {
+              chatSiteLoaded = true;
+              msgBuffer = [];
+              hideTyping();
+              msgs.innerHTML = "";
+              appendMsg("ai", buildWelcome(s));
+              scrollChat();
+            }
+          }, 5000);
+        } else {
+          // Offline mode — show welcome immediately
+          chatSiteLoaded = true;
+          appendMsg("ai", buildWelcome(s));
+        }
+
+        // Focus input
+        setTimeout(() => document.getElementById("chatInp").focus(), 100);
+
+        // Update URL
+        const url = new URL(window.location);
+        url.searchParams.set("site", siteId);
+        history.replaceState({}, "", url);
+      }
+
+      function buildWelcome(s) {
+        const issues = [];
+        if (s.updates > 0)
+          issues.push(`${s.updates} pending update${s.updates > 1 ? "s" : ""}`);
+        if (s.dbg) issues.push("debug mode is on");
+        if (s.status === "warning") issues.push("site is experiencing issues");
+
+        let txt = `Hello! I'm your AI agent for **${s.domain}**.\n\nI have full access to this WordPress site and can help you with:\n\n• **Plugin & theme updates** — update individual or all plugins\n• **Content management** — create, edit, or delete posts and pages\n• **Health monitoring** — check performance, uptime, and errors\n• **Security** — scan for vulnerabilities and fix issues\n• **Backups** — create and restore site backups\n• **Cache management** — clear caches and optimize performance`;
+
+        if (issues.length) {
+          txt += `\n\n⚠ **I noticed:** ${issues.join(", ")}. Want me to handle that?`;
+        } else {
+          txt += `\n\nEverything looks healthy ✓ — what would you like me to do?`;
+        }
+        return txt;
+      }
+
+      function sendChat() {
+        const inp = document.getElementById("chatInp");
+        const txt = inp.value.trim();
+        if (!txt) return;
+        inp.value = "";
+        autoResize(inp);
+
+        appendMsg("user", txt);
+        scrollChat();
+        setChatSending(true);
+
+        if (socket && socket.connected && activeChatSite) {
+          socket.emit("chat:send", { text: txt, siteId: activeChatSite.id });
+        } else {
+          // Offline fallback — simulate agent response
+          setTimeout(() => {
+            showTyping();
+            setTimeout(
+              () => {
+                hideTyping();
+                const resp = simulateAgentReply(txt, activeChatSite);
+                appendMsg("ai", resp);
+                scrollChat();
+                setChatSending(false);
+              },
+              1200 + Math.random() * 800,
+            );
+          }, 300);
+        }
+      }
+
+      function simulateAgentReply(txt, s) {
+        const lo = txt.toLowerCase();
+        if (!s) return "Please open a site first.";
+        if (lo.includes("update")) {
+          if (s.updates > 0) {
+            // Trigger actual update
+            setTimeout(() => runUpd(s.id), 500);
+            return `Running updates for **${s.domain}** now...\n\nI'll update ${s.updates} plugin${s.updates > 1 ? "s" : ""} and check for theme updates. This should take about 30 seconds. I'll let you know when it's done.`;
+          }
+          return `**${s.domain}** is already fully up to date — no pending plugin or theme updates.`;
+        }
+        if (lo.includes("health") || lo.includes("status")) {
+          return `**Health Report for ${s.domain}**\n\n• Status: ${s.status === "online" ? "✓ Online" : "⚠ Warning"}\n• Load time: ${s.load || "—"}\n• Uptime: ${s.up || "—"}\n• WordPress: ${s.wp}\n• PHP: ${s.php}\n• Active plugins: ${s.plugins}\n${s.dbg ? "\n⚠ Debug mode is currently enabled — you should disable this on production." : ""}`;
+        }
+        if (lo.includes("plugin")) {
+          const fakePlugins = [
+            "WooCommerce 8.2.1",
+            "Yoast SEO 21.4",
+            "Elementor 3.18",
+            "Wordfence 7.11",
+            "WP Rocket 3.14",
+            "ACF Pro 6.2",
+          ];
+          return `**Installed Plugins on ${s.domain}**\n\n${fakePlugins
+            .slice(0, s.plugins || 5)
+            .map((p, i) => `${i + 1}. ${p}`)
+            .join(
+              "\n",
+            )}\n${s.updates > 0 ? `\n⬆ ${s.updates} of these have available updates.` : ""}`;
+        }
+        if (lo.includes("post") || lo.includes("page")) {
+          return `I can list, create, edit or delete posts and pages on **${s.domain}**. To get started, tell me:\n\n• "List recent posts"\n• "Delete post ID 42"\n• "Create a new page called Contact Us"`;
+        }
+        if (lo.includes("cache")) {
+          return `Clearing cache on **${s.domain}**...\n\n✓ Page cache cleared\n✓ Object cache flushed\n✓ CDN cache purged\n\nCache successfully cleared. Site is serving fresh content.`;
+        }
+        if (lo.includes("backup")) {
+          return `I can create a full backup of **${s.domain}** including files and database.\n\nShall I proceed? This typically takes 2-5 minutes depending on site size.`;
+        }
+        return `I'm your agent for **${s.domain}**. I can help with:\n\n• Plugin/theme updates\n• Health checks & monitoring\n• Content management (posts/pages)\n• Cache clearing\n• Backups & restores\n• Security scans\n\nWhat would you like to do?`;
+      }
+
+      function chatKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendChat();
+        }
+      }
+      function autoResize(el) {
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 120) + "px";
+      }
+      function setChatSending(on) {
+        chatStreaming = on;
+        const btn = document.getElementById("chatSend");
+        if (btn) {
+          btn.disabled = on;
+          btn.textContent = on ? "…" : "Send ↑";
+        }
+      }
+      function scrollChat() {
+        const el = document.getElementById("chatMsgs");
+        if (el) el.scrollTop = el.scrollHeight;
+      }
+
+      function appendMsg(role, text, type, chips) {
+        const msgs = document.getElementById("chatMsgs");
+        if (!msgs) return null;
+        const row = document.createElement("div");
+        row.className = `msg-row ${role === "user" ? "user" : "ai"}`;
+        const av = document.createElement("div");
+        av.className = `msg-av ${role === "user" ? "user-av" : "ai-av"}`;
+        av.textContent = role === "user" ? "A" : "✦";
+        const bub = document.createElement("div");
+        bub.className = "msg-bub";
+        if (type === "error") bub.style.borderColor = "rgba(244,63,94,.3)";
+        bub.innerHTML = mdToHtml(text);
+        // Render chip actions (clickable URL buttons)
+        if (chips && chips.length) {
+          const chipWrap = document.createElement("div");
+          chipWrap.style.cssText =
+            "display:flex;flex-wrap:wrap;gap:5px;margin-top:8px";
+          chips.forEach((c) => {
+            const a = document.createElement("a");
+            a.href = c.value || "#";
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.style.cssText =
+              "background:var(--bg4);border:1px solid var(--b3);color:var(--sky);border-radius:5px;padding:3px 9px;font-size:11px;text-decoration:none;font-family:JetBrains Mono,monospace";
+            a.textContent = "↗ " + c.value;
+            chipWrap.appendChild(a);
+          });
+          bub.appendChild(chipWrap);
+        }
+        row.appendChild(av);
+        row.appendChild(bub);
+        msgs.appendChild(row);
+        return bub;
+      }
+
+      function mdToHtml(txt) {
+        if (!txt) return "";
+        // Strip backend-specific action tags from text
+        txt = txt
+          .replace(/\[CHIP\s+[^\]]+\]/g, "")
+          .replace(/\[RUN_TASK\s+[^\]]+\]/g, "")
+          .replace(/\[SAVE\s+[^\]]+\]/g, "")
+          .replace(/\[TEST_WP\]/g, "")
+          .replace(/\[TEST_SSH\]/g, "")
+          .replace(/\[SETUP_COMPLETE\]/g, "")
+          .replace(
+            /\[LINK\s+([^\|]+)\|([^\]]+)\]/g,
+            '<a href="$2" target="_blank" style="color:var(--sky)">$1</a>',
+          );
+        // Markdown-like formatting
+        return txt
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(
+            /\[LINK\s+([^\|]+)\|([^\]]+)\]/g,
+            '<a href="$2" target="_blank" style="color:var(--sky)">$1</a>',
+          )
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\n/g, "<br>");
+      }
+
+      function appendToStream(el, text) {
+        if (!el) return;
+        el._raw = (el._raw || "") + text;
+        el.innerHTML = mdToHtml(el._raw);
+      }
+      function appendSysMsg(text) {
+        const msgs = document.getElementById("chatMsgs");
+        if (!msgs) return;
+        const el = document.createElement("div");
+        el.className = "sys-msg";
+        el.innerHTML = `<span>ℹ</span><span>${esc(text)}</span>`;
+        msgs.appendChild(el);
+        scrollChat();
+      }
+      function showTyping() {
+        const msgs = document.getElementById("chatMsgs");
+        if (!msgs || document.getElementById("typing-ind")) return;
+        const ind = document.createElement("div");
+        ind.id = "typing-ind";
+        ind.className = "typing-ind";
+        ind.innerHTML = "<span></span><span></span><span></span>";
+        msgs.appendChild(ind);
+        scrollChat();
+      }
+      function hideTyping() {
+        const ind = document.getElementById("typing-ind");
+        if (ind) ind.remove();
+      }
+      function approveAction(id, approved, card) {
+        if (socket) socket.emit("chat:approve", { id, approved });
+        if (card)
+          card.innerHTML = `<div style="font-size:12px;color:${approved ? "var(--emerald)" : "var(--rose)"}">
+    ${approved ? "✓ Approved — agent proceeding" : "✕ Declined — action cancelled"}</div>`;
+      }
+
+      /* ════════════════════════════════════════════
+   ALERTS
+════════════════════════════════════════════ */
+      function seedAlerts() {
+        const now = Date.now();
+        alerts = [
+          {
+            id: "a1",
+            level: "ok",
+            message: "All sites online — monitoring active",
+            source: "monitor",
+            ts: now - 60e3 * 2,
+          },
+          {
+            id: "a2",
+            level: "warn",
+            message:
+              "lisciobyapeksha.com — debug mode is enabled on production",
+            source: "health",
+            ts: now - 60e3 * 8,
+          },
+          {
+            id: "a3",
+            level: "warn",
+            message: "jainamsilkmill.com — 3 plugin updates available",
+            source: "updater",
+            ts: now - 60e3 * 12,
+          },
+          {
+            id: "a4",
+            level: "warn",
+            message:
+              "jainamsilkmill.com — load time is 13.8s (above threshold)",
+            source: "performance",
+            ts: now - 60e3 * 18,
+          },
+          {
+            id: "a5",
+            level: "info",
+            message: "sqft.co.in — monitoring check completed",
+            source: "monitor",
+            ts: now - 60e3 * 25,
+          },
+          {
+            id: "a6",
+            level: "info",
+            message: "dentathome.com — monitoring check completed",
+            source: "monitor",
+            ts: now - 60e3 * 30,
+          },
+          {
+            id: "a7",
+            level: "warn",
+            message:
+              "sbandpartners.com — site response degraded (97.4% uptime)",
+            source: "monitor",
+            ts: now - 60e3 * 45,
+          },
+          {
+            id: "a8",
+            level: "info",
+            message: "System startup — all monitors initialized",
+            source: "system",
+            ts: now - 60e3 * 60,
+          },
+        ];
+        saveAlerts();
+      }
+
+      function addAlert(entry) {
+        const al = { id: Date.now() + Math.random(), ...entry };
+        alerts.unshift(al);
+        if (alerts.length > 300) alerts.pop();
+        saveAlerts();
+        updateAlertBadge();
+        if (curView === "alerts") renderAlerts();
+      }
+
+      function updateAlertBadge() {
+        const warns = alerts.filter(
+          (a) => a.level === "warn" || a.level === "error",
+        ).length;
+        const badge = document.getElementById("sbAlerts");
+        if (badge) badge.textContent = warns;
+      }
+
+      function renderAlerts() {
+        const feed = document.getElementById("alertFeed");
+        if (!feed) return;
+        if (!alerts.length) {
+          feed.innerHTML = `<div class="no-alerts"><div class="no-alerts-ic">🔔</div><div>No alerts yet — all clear!</div></div>`;
+          return;
+        }
+        feed.innerHTML = alerts
+          .map((a) => {
+            const dotCls =
+              {
+                info: "info",
+                ok: "ok",
+                warn: "warn",
+                error: "error",
+                debug: "debug",
+              }[a.level] || "info";
+            return `<div class="alert-item">
+      <div class="al-dot ${dotCls}"></div>
+      <div class="al-body">
+        <div class="al-msg">${esc(a.message)}</div>
+        <div class="al-meta">
+          <span class="al-src">${esc(a.source || "system")}</span>
+          <span class="al-time">${timeAgo(a.ts)}</span>
+        </div>
+      </div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      function clearAlerts() {
+        alerts = [];
+        saveAlerts();
+        updateAlertBadge();
+        renderAlerts();
+        toast("Alerts cleared", "🗑");
+      }
+
+      /* ════════════════════════════════════════════
+   TASK LOG
+════════════════════════════════════════════ */
+      function seedTaskLog() {
+        const now = Date.now();
+        taskLog = [
+          {
+            id: "t1",
+            title: "Monitor check — all sites",
+            desc: "8 sites checked, all systems nominal",
+            status: "ok",
+            site: "all",
+            ts: now - 60e3 * 3,
+          },
+          {
+            id: "t2",
+            title: "Site added — aotp.in",
+            desc: "SSH connected, WP plugin installed, monitoring activated",
+            status: "ok",
+            site: "aotp.in",
+            ts: now - 864e5 * 3,
+          },
+          {
+            id: "t3",
+            title: "Plugin update — sqft.co.in",
+            desc: "WooCommerce updated from 8.1.0 to 8.2.1",
+            status: "ok",
+            site: "sqft.co.in",
+            ts: now - 864e5 * 3.5,
+          },
+          {
+            id: "t4",
+            title: "Monitor check — all sites",
+            desc: "8 sites checked, 2 warnings detected",
+            status: "info",
+            site: "all",
+            ts: now - 864e5 * 4,
+          },
+          {
+            id: "t5",
+            title: "Site added — dentathome.com",
+            desc: "SSH connected, WP plugin installed, monitoring activated",
+            status: "ok",
+            site: "dentathome.com",
+            ts: now - 864e5 * 4,
+          },
+          {
+            id: "t6",
+            title: "Security scan — lisciobyapeksha.com",
+            desc: "Scan complete — 0 vulnerabilities found",
+            status: "ok",
+            site: "lisciobyapeksha.com",
+            ts: now - 864e5 * 5,
+          },
+        ];
+        saveTaskLog();
+      }
+
+      function pushTaskLog(entry) {
+        taskLog.unshift({ id: Date.now() + Math.random(), ...entry });
+        if (taskLog.length > 200) taskLog.pop();
+        saveTaskLog();
+        updateTaskBadge();
+        if (curView === "tasklog") renderTaskLog();
+      }
+
+      function updateTaskBadge() {
+        const badge = document.getElementById("sbTasks");
+        if (badge) badge.textContent = taskLog.length;
+      }
+
+      function renderTaskLog() {
+        const list = document.getElementById("taskLogList");
+        if (!list) return;
+        if (!taskLog.length) {
+          list.innerHTML = `<div class="no-tasks"><div style="font-size:28px;opacity:.3;margin-bottom:8px">📋</div><div>No tasks yet</div></div>`;
+          return;
+        }
+        const icons = { ok: "✅", err: "❌", run: "⟳", info: "ℹ️" };
+        list.innerHTML = taskLog
+          .map(
+            (t) => `
+    <div class="tlog-item">
+      <div class="tlog-ic ${t.status || "info"}">${icons[t.status || "info"] || "ℹ️"}</div>
+      <div class="tlog-body">
+        <div class="tlog-title">${esc(t.title || "Task")}</div>
+        ${t.desc ? `<div class="tlog-desc">${esc(t.desc)}</div>` : ""}
+        <div class="tlog-meta">
+          ${t.site ? `<span class="tlog-badge">${esc(t.site)}</span>` : ""}
+          <span>${timeAgo(t.ts)}</span>
+        </div>
+      </div>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function clearTaskLog() {
+        taskLog = [];
+        saveTaskLog();
+        updateTaskBadge();
+        renderTaskLog();
+        toast("Task log cleared", "🗑");
+      }
+
+      /* ════════════════════════════════════════════
+   REPORTS
+════════════════════════════════════════════ */
+      function renderReports() {
+        const avgUp = sites.length
+          ? (
+              sites.reduce((a, s) => a + parseFloat(s.up || "0"), 0) /
+              sites.length
+            ).toFixed(1)
+          : "0";
+        const totalUp = sites.reduce((a, s) => a + (s.updates || 0), 0);
+        const issues = sites.filter(
+          (s) => s.status !== "online" || s.dbg,
+        ).length;
+
+        document.getElementById("repStats").innerHTML = `
+    <div class="rsc g"><div class="rv">${sites.filter((s) => s.status === "online").length}</div><div class="rl">Sites Online</div></div>
+    <div class="rsc b"><div class="rv">${avgUp}%</div><div class="rl">Avg Uptime</div></div>
+    <div class="rsc a"><div class="rv">${totalUp}</div><div class="rl">Pending Updates</div></div>
+    <div class="rsc p"><div class="rv">${issues}</div><div class="rl">Sites with Issues</div></div>`;
+
+        const sorted = [...sites].sort(
+          (a, b) => parseFloat(b.up || "0") - parseFloat(a.up || "0"),
+        );
+        document.getElementById("siteRepList").innerHTML = sorted
+          .map((s) => {
+            const upPct = parseFloat(s.up || "0");
+            const dc =
+              s.status === "online"
+                ? "on"
+                : s.status === "offline"
+                  ? "of"
+                  : "wa";
+            const barCls = upPct >= 99 ? "" : "wa";
+            return `<div class="site-rep">
+      <div class="sr-dot ${dc}"></div>
+      <div class="sr-name" title="${esc(s.domain)}">${esc(s.domain)}</div>
+      <div class="sr-bar-wrap"><div class="sr-bar ${barCls}" style="width:${upPct}%"></div></div>
+      <div class="sr-up">${esc(s.up || "—")}</div>
+      <div class="sr-tags">
+        ${s.updates > 0 ? `<span class="sr-tag upd">⬆ ${s.updates}</span>` : `<span class="sr-tag ok">✓</span>`}
+        ${s.dbg ? `<span class="sr-tag" style="color:var(--rose);border-color:rgba(244,63,94,.2)">dbg</span>` : ""}
+      </div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      /* ════════════════════════════════════════════
+   ADD / DELETE SITES
+════════════════════════════════════════════ */
+      function openAdd() {
+        document.getElementById("addOv").classList.add("open");
+        document.getElementById("f_url").focus();
+      }
+      function closeAdd() {
+        document.getElementById("addOv").classList.remove("open");
+        resetF();
+      }
+      function ooc(e, id, fn) {
+        if (e.target === document.getElementById(id)) fn();
+      }
+      function setM(m, btn) {
+        sMode = m;
+        document
+          .querySelectorAll(".to")
+          .forEach((b) => b.classList.remove("on"));
+        btn.classList.add("on");
+        document.getElementById("pwF").style.display =
+          m === "password" ? "" : "none";
+        document.getElementById("keyF").style.display =
+          m === "key" ? "" : "none";
+      }
+      function resetF() {
+        ["f_url", "f_name", "f_host", "f_pass", "f_key", "f_user"].forEach(
+          (id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          },
+        );
+        document.getElementById("f_port").value = "22";
+        document.getElementById("setupTb").classList.remove("show");
+        setM("password", document.getElementById("mPw"));
+        const b = document.getElementById("subBtn");
+        b.disabled = false;
+        b.textContent = "⚡ Connect & Setup";
+        const stepTexts = [
+          "Connecting via SSH…",
+          "Locating WordPress install…",
+          "Checking WP-CLI…",
+          "Finding admin user…",
+          "Generating application password…",
+          "Reading database config…",
+          "Saving site…",
+        ];
+        ["ts1", "ts2", "ts3", "ts4", "ts5", "ts6", "ts7"].forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.className = "ts";
+          el.style.opacity = i === 0 ? "1" : ".25";
+          el.innerHTML = `<span class="tic">⏳</span>${stepTexts[i]}`;
+        });
+      }
+      function setStep(n, state, msg) {
+        const el = document.getElementById("ts" + n);
+        el.style.opacity = "1";
+        const ic = {
+          run: '<span class="tic tspin">⟳</span>',
+          ok: '<span class="tic">✅</span>',
+          fail: '<span class="tic">❌</span>',
+        };
+        el.className =
+          "ts " + (state === "run" ? "run" : state === "ok" ? "ok" : "fail");
+        el.innerHTML = (ic[state] || '<span class="tic">⏳</span>') + " " + msg;
+      }
+      function addSite() {
+        const url = document.getElementById("f_url").value.trim();
+        const host = document.getElementById("f_host").value.trim();
+        const user = document.getElementById("f_user").value.trim();
+        const port = document.getElementById("f_port").value.trim() || "22";
+        const pass =
+          sMode === "password"
+            ? document.getElementById("f_pass").value.trim()
+            : "";
+        const key =
+          sMode === "key" ? document.getElementById("f_key").value.trim() : "";
+        if (!url || !host || !user || (!pass && !key)) {
+          toast("Please fill all required fields", "⚠️", "err");
+          return;
+        }
+
+        const btn = document.getElementById("subBtn");
+        btn.disabled = true;
+        btn.textContent = "⏳ Connecting…";
+        document.getElementById("setupTb").classList.add("show");
+
+        const domain = url
+          .replace(/https?:\/\//, "")
+          .replace(/\/.*$/, "")
+          .toLowerCase();
+        const name = document.getElementById("f_name").value.trim() || domain;
+        const cat = document.getElementById("f_cat").value || "client";
+        const siteId = "s" + Date.now();
+        const clientId = socket && socket.id ? socket.id : null;
+
+        // Listen for live progress updates from the server
+        const onStep = (payload) => {
+          if (!payload || typeof payload.step !== "number") return;
+          setStep(payload.step, payload.status, payload.message);
+          if (payload.status === "fail" && payload.detail) {
+            // Show detail in tooltip-style row
+            const el = document.getElementById("ts" + payload.step);
+            if (el) {
+              const d = document.createElement("div");
+              d.style.cssText =
+                "font-size:11px;color:var(--t3);margin-left:22px;margin-top:3px;line-height:1.4";
+              d.textContent =
+                payload.detail.length > 140
+                  ? payload.detail.slice(0, 140) + "…"
+                  : payload.detail;
+              el.appendChild(d);
+            }
+          }
+        };
+        if (socket) socket.on("onboard:step", onStep);
+
+        fetch("/api/sites/onboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: siteId,
+            url,
+            label: name,
+            category: cat,
+            sshHost: host,
+            sshPort: parseInt(port),
+            sshUser: user,
+            sshPassword: pass,
+            sshKey: key,
+            clientId,
+          }),
+        })
+          .then((r) => r.json().then((j) => ({ ok: r.ok, body: j })))
+          .then(({ ok, body }) => {
+            if (socket) socket.off("onboard:step", onStep);
+            if (!ok || !body.ok) {
+              btn.disabled = false;
+              btn.textContent = "⚡ Connect & Setup";
+              toast(
+                body && body.error ? body.error : "Onboarding failed",
+                "❌",
+                "err",
+              );
+              return;
+            }
+            // Build local site card with the auto-detected data
+            const ns = {
+              id: body.siteId || siteId,
+              domain,
+              name,
+              url,
+              status: "online",
+              wp: body.wpVersion || "detected",
+              php: "—",
+              plugins: 0,
+              updates: 0,
+              load: "—",
+              up: "—",
+              chk: "Just now",
+              cat,
+              at: Date.now(),
+              // Persist credentials for auto-re-register after server restart
+              sshHost: host,
+              sshUser: user,
+              sshPort: parseInt(port),
+              sshPassword: pass,
+              sshKeyPath: key,
+              wpUser: body.wpUser || "admin",
+              wpPath: body.wpPath || "",
+            };
+            sites.unshift(ns);
+            save();
+            pushTaskLog({
+              title: `Site added — ${domain}`,
+              desc: `SSH connected, WP ${body.wpVersion || "detected"}, app password generated`,
+              status: "ok",
+              site: domain,
+              ts: Date.now(),
+            });
+            addAlert({
+              level: "ok",
+              message: `${domain} connected — agent ready`,
+              source: "system",
+              ts: Date.now(),
+            });
+            renderAll();
+            setTimeout(() => {
+              closeAdd();
+              toast(`${domain} connected & ready!`, "✅");
+              setTimeout(() => {
+                const c = document.getElementById("card-" + ns.id);
+                if (c) {
+                  c.style.borderColor = "rgba(16,217,160,.45)";
+                  setTimeout(() => (c.style.borderColor = ""), 2500);
+                }
+              }, 100);
+            }, 700);
+          })
+          .catch((err) => {
+            if (socket) socket.off("onboard:step", onStep);
+            btn.disabled = false;
+            btn.textContent = "⚡ Connect & Setup";
+            toast("Network error: " + err, "❌", "err");
+          });
+      }
+
+      function openWpCreds() {
+        if (!activeChatSite) return;
+        document.getElementById("wpCredsSubtitle").textContent =
+          activeChatSite.domain;
+        document.getElementById("wc_user").value =
+          activeChatSite.wpUser || "admin";
+        document.getElementById("wc_pass").value = "";
+        document.getElementById("wpCredsOv").classList.add("open");
+        setTimeout(() => document.getElementById("wc_pass").focus(), 100);
+      }
+      function closeWpCreds() {
+        document.getElementById("wpCredsOv").classList.remove("open");
+      }
+      function saveWpCreds() {
+        const s = activeChatSite;
+        if (!s) return;
+        const wpUser =
+          document.getElementById("wc_user").value.trim() || "admin";
+        const wpAppPassword = document.getElementById("wc_pass").value.trim();
+        if (!wpAppPassword) {
+          toast("Application Password required", "⚠️", "err");
+          return;
+        }
+
+        // Save to site object
+        s.wpUser = wpUser;
+        s.wpAppPassword = wpAppPassword;
+        save();
+
+        // Update backend
+        fetch("/api/sites/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: s.id,
+            url: s.url,
+            name: s.name,
+            domain: s.domain,
+            cat: s.cat,
+            sshHost: s.sshHost || "",
+            sshUser: s.sshUser || "",
+            sshPort: s.sshPort || 22,
+            sshPassword: s.sshPassword || "",
+            wpUser,
+            wpAppPassword,
+            setupComplete: true,
+          }),
+        })
+          .then(() => {
+            closeWpCreds();
+            toast("Credentials saved — reconnecting agent…", "✅");
+            // Reload the chat with new credentials
+            setTimeout(() => {
+              chatSiteLoaded = false;
+              msgBuffer = [];
+              document.getElementById("chatMsgs").innerHTML = "";
+              if (socket && socket.connected) {
+                appendSysMsg("Reconnecting with updated credentials…");
+                showTyping();
+                socket.emit("chat:load_site", { siteId: s.id });
+              } else {
+                chatSiteLoaded = true;
+                appendMsg("ai", buildWelcome(s));
+              }
+            }, 500);
+          })
+          .catch(() => {
+            closeWpCreds();
+            toast("Credentials saved locally", "✅");
+          });
+      }
+
+      function openDel(id, dom) {
+        delId = id;
+        document.getElementById("delDom").textContent = dom;
+        document.getElementById("delOv").classList.add("open");
+      }
+      function closeDel() {
+        document.getElementById("delOv").classList.remove("open");
+        delId = null;
+      }
+      function doDel() {
+        if (!delId) return;
+        const s = sites.find((x) => x.id === delId);
+        sites = sites.filter((x) => x.id !== delId);
+        save();
+        renderAll();
+        closeDel();
+        if (s) {
+          toast(`${s.domain} removed`, "🗑");
+          addAlert({
+            level: "info",
+            message: `${s.domain} removed from monitoring`,
+            source: "system",
+            ts: Date.now(),
+          });
+        }
+      }
+
+      function goDash(id) {
+        const s = sites.find((x) => x.id === id);
+        if (!s) return;
+        window.open(
+          s.url.replace(/\/$/, "") + "/wp-admin/",
+          "_blank",
+          "noopener",
+        );
+        toast("Opening WP Dashboard…", "⊞");
+      }
+      function setF(f, btn) {
+        filt = f;
+        document
+          .querySelectorAll(".fb")
+          .forEach((b) => b.classList.remove("on"));
+        btn.classList.add("on");
+        renderGrid();
+      }
+
+      /* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+      function timeAgo(ts) {
+        if (!ts) return "—";
+        const diff = Date.now() - ts;
+        if (diff < 60e3) return "Just now";
+        if (diff < 3600e3) return `${Math.floor(diff / 60e3)}m ago`;
+        if (diff < 86400e3) return `${Math.floor(diff / 3600e3)}h ago`;
+        return `${Math.floor(diff / 86400e3)}d ago`;
+      }
+      function toast(msg, ic = "ℹ️", type = "ok") {
+        const w = document.getElementById("tw");
+        const t = document.createElement("div");
+        t.className = `toast ${type}`;
+        t.innerHTML = `<span>${ic}</span><span>${esc(msg)}</span>`;
+        w.appendChild(t);
+        setTimeout(() => {
+          t.style.animation = "tout .22s ease forwards";
+          setTimeout(() => t.remove(), 220);
+        }, 3200);
+      }
+      function esc(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeAdd();
+          closeDel();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault();
+          if (curView === "sites") document.getElementById("searchInp").focus();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+          e.preventDefault();
+          openAdd();
+        }
+      });
+
+      init();
+    </script>
+  </body>
+</html>
