@@ -5,6 +5,7 @@ import { Server as SocketIO } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { NodeSSH } from 'node-ssh';
 import { loadSiteConfig, DASHBOARD_PORT, bus } from './config';
 import { Orchestrator } from './agents/orchestrator';
 import { Scheduler } from './scheduler';
@@ -84,6 +85,332 @@ app.get('/api/sites/:id/status', (req, res) => {
     siteName: cfg.siteName || cfg.domain || cfg.wpUrl,
     wpUrl: cfg.wpUrl,
   });
+});
+
+// ─── REAL onboarding flow ─────────────────────────────────────
+// Uses SSH to: verify connection, find WP install, ensure WP-CLI,
+// detect admin user, auto-create application password, extract DB creds.
+// User never has to provide WP credentials manually.
+//
+// POST /api/sites/onboard
+// Body: { id, url, label?, category?, sshHost, sshPort, sshUser, sshPassword?, sshKey?, clientId? }
+// `clientId` is the socket.id — we stream progress to that socket.
+
+interface OnboardBody {
+  id?: string;
+  url?: string;
+  label?: string;
+  category?: string;
+  sshHost?: string;
+  sshPort?: number;
+  sshUser?: string;
+  sshPassword?: string;
+  sshKey?: string;             // private key contents OR file path
+  sshKeyPassphrase?: string;   // optional — required if private key is encrypted
+  clientId?: string;           // socket.id to stream progress to
+}
+
+interface OnboardResult {
+  ok: boolean;
+  siteId?: string;
+  wpUser?: string;
+  wpAppPassword?: string;  // FIX: added so frontend can persist it
+  wpVersion?: string;
+  wpPath?: string;
+  error?: string;
+}
+
+function emitOnboardStep(
+  clientId: string | undefined,
+  step: number,
+  status: 'run' | 'ok' | 'fail',
+  message: string,
+  detail?: string,
+): void {
+  if (!clientId) return;
+  const payload = { step, status, message, detail };
+  io.to(clientId).emit('onboard:step', payload);
+}
+
+async function runOnboardingFlow(body: OnboardBody): Promise<OnboardResult> {
+  const clientId = body.clientId;
+  const ssh = new NodeSSH();
+
+  // Resolve siteId early so we can use it for key file path
+  const domain = (body.url || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+  const siteId = body.id || 's' + Date.now();
+
+  // ── Pre-step: figure out SSH auth method ──────────────────
+  // The user can give us EITHER a password, OR a private key.
+  // The key field can contain three things:
+  //   1. Private key CONTENT (multi-line, starts with -----BEGIN)
+  //   2. A file PATH on the server (single line, starts with /)
+  //   3. A PUBLIC key by mistake (starts with ssh-rsa / ssh-ed25519 / etc) — common error
+  // We auto-detect and handle each case clearly.
+  let resolvedKeyPath = '';
+  if (!body.sshPassword && body.sshKey) {
+    const k = body.sshKey.trim();
+
+    // Case 3: public key — user pasted wrong file
+    if (
+      k.startsWith('ssh-rsa ') ||
+      k.startsWith('ssh-ed25519 ') ||
+      k.startsWith('ssh-dss ') ||
+      k.startsWith('ecdsa-sha2-')
+    ) {
+      emitOnboardStep(
+        clientId, 1, 'fail',
+        'You pasted a PUBLIC key by mistake',
+        'The agent needs your PRIVATE key. Public keys start with "ssh-rsa". Private keys are usually in ~/.ssh/id_rsa (without .pub) and start with -----BEGIN OPENSSH PRIVATE KEY-----',
+      );
+      return { ok: false, error: 'Public key provided. Private key is required.' };
+    }
+
+    // Case 1: private key content — write to disk
+    if (k.startsWith('-----BEGIN') || k.includes('PRIVATE KEY')) {
+      try {
+        const keysDir = path.join(process.cwd(), 'data', 'keys');
+        fs.mkdirSync(keysDir, { recursive: true, mode: 0o700 });
+        resolvedKeyPath = path.join(keysDir, `${siteId}.key`);
+        // Make sure key ends with newline (some SSH parsers need it)
+        const content = k.endsWith('\n') ? k : k + '\n';
+        fs.writeFileSync(resolvedKeyPath, content, { mode: 0o600 });
+      } catch (err) {
+        emitOnboardStep(clientId, 1, 'fail', 'Could not write key file', String(err));
+        return { ok: false, error: `Could not save private key: ${err}` };
+      }
+    }
+    // Case 2: file path
+    else {
+      if (!fs.existsSync(k)) {
+        emitOnboardStep(
+          clientId, 1, 'fail',
+          'Key file not found',
+          `The path "${k}" doesn't exist on the agent server. If you're running the agent in the cloud (Railway/etc), paste your private key contents instead of a file path.`,
+        );
+        return { ok: false, error: `Key file not found: ${k}` };
+      }
+      resolvedKeyPath = k;
+    }
+  }
+
+  if (!body.sshPassword && !resolvedKeyPath) {
+    emitOnboardStep(clientId, 1, 'fail', 'No SSH credentials provided');
+    return { ok: false, error: 'Either an SSH password or a private key is required.' };
+  }
+
+  try {
+    // ── Step 1: SSH connect ──────────────────────────────────
+    emitOnboardStep(clientId, 1, 'run', 'Connecting via SSH…');
+
+    const sshOpts: Parameters<NodeSSH['connect']>[0] = {
+      host: body.sshHost!,
+      port: body.sshPort || 22,
+      username: body.sshUser!,
+      readyTimeout: 40000,    // FIX: was 15000 — cPanel/shared hosts are slow to handshake
+      tryKeyboard: false,     // FIX: prevents hanging on keyboard-interactive prompt
+      keepaliveInterval: 10000, // FIX: send keepalives so idle connections don't drop
+      keepaliveCountMax: 3,
+    };
+    if (body.sshPassword) {
+      sshOpts.password = body.sshPassword;
+    } else if (resolvedKeyPath) {
+      sshOpts.privateKeyPath = resolvedKeyPath;
+      if (body.sshKeyPassphrase) {
+        sshOpts.passphrase = body.sshKeyPassphrase;
+      }
+    }
+
+    try {
+      await ssh.connect(sshOpts);
+    } catch (err) {
+      const msg = String(err);
+      // Make common SSH errors more actionable
+      let friendly = msg;
+      if (msg.includes('Encrypted private') && msg.includes('passphrase')) {
+        friendly = 'Your private key is password-protected (encrypted). Enter the key passphrase in the form, or switch to Password mode and use your server login password instead.';
+      } else if (msg.includes('Cannot parse privateKey')) {
+        friendly = 'Could not parse the private key. Make sure you pasted the full key including the -----BEGIN and -----END lines, with no extra characters.';
+      } else if (msg.includes('All configured authentication methods failed')) {
+        friendly = `Authentication failed. Check that:
+• SSH username "${body.sshUser}" is correct (not a key file name like id_rsa — usually it's "root", your cPanel username, or "ubuntu")
+• ${body.sshPassword ? 'Password is correct' : 'Private key matches a public key authorized on the server'}`;
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('handshake')) {
+        friendly = `Cannot reach ${body.sshHost}:${body.sshPort || 22} for SSH handshake.\n\nCheck:\n• SSH is enabled in cPanel → SSH Access (many shared hosts disable it by default)\n• Port is correct — cPanel hosts often use port 2222, not 22\n• Your hosting provider may require IP whitelisting — add the Railway/server IP to the allowlist`;
+      } else if (msg.includes('ENOTFOUND')) {
+        friendly = `DNS lookup failed for "${body.sshHost}". Check the hostname.`;
+      }
+      emitOnboardStep(clientId, 1, 'fail', 'SSH connection failed', friendly);
+      return { ok: false, error: friendly };
+    }
+    emitOnboardStep(clientId, 1, 'ok', `Connected to ${body.sshHost}`);
+
+    // ── Step 2: Find WordPress install ───────────────────────
+    emitOnboardStep(clientId, 2, 'run', 'Locating WordPress install…');
+
+    const findWp = await ssh.execCommand(
+      `find /var/www /home /srv /opt -name wp-config.php 2>/dev/null | head -1`,
+    );
+    const wpConfigPath = findWp.stdout.trim();
+    if (!wpConfigPath) {
+      emitOnboardStep(clientId, 2, 'fail', 'WordPress not found on server',
+        'Searched /var/www, /home, /srv, /opt — no wp-config.php found');
+      ssh.dispose();
+      return { ok: false, error: 'No wp-config.php found on server.' };
+    }
+    const wpPath = wpConfigPath.replace('/wp-config.php', '');
+
+    // Get WP version
+    const wpVersionCmd = await ssh.execCommand(
+      `grep "wp_version =" ${wpPath}/wp-includes/version.php 2>/dev/null | head -1`,
+    );
+    const wpVersionMatch = wpVersionCmd.stdout.match(/['"]([^'"]+)['"]/);
+    const wpVersion = wpVersionMatch?.[1] || 'unknown';
+    emitOnboardStep(clientId, 2, 'ok', `WordPress ${wpVersion} found at ${wpPath}`);
+
+    // ── Step 3: Ensure WP-CLI ────────────────────────────────
+    emitOnboardStep(clientId, 3, 'run', 'Checking WP-CLI…');
+
+    let wpCliCmd = 'wp'; // default if installed system-wide
+    const wpCheck = await ssh.execCommand('which wp 2>/dev/null');
+    if (!wpCheck.stdout.trim()) {
+      // Try to install WP-CLI as a phar in user's home
+      emitOnboardStep(clientId, 3, 'run', 'WP-CLI not found — installing…');
+      const installCmd = await ssh.execCommand(
+        `cd ~ && curl -sLO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && echo "OK" || echo "FAIL"`,
+      );
+      if (!installCmd.stdout.includes('OK')) {
+        emitOnboardStep(clientId, 3, 'fail', 'WP-CLI install failed',
+          'Server may not have curl or internet access. ' + (installCmd.stderr || ''));
+        ssh.dispose();
+        return { ok: false, error: 'Could not install WP-CLI on server.' };
+      }
+      wpCliCmd = 'php ~/wp-cli.phar';
+      emitOnboardStep(clientId, 3, 'ok', 'WP-CLI installed');
+    } else {
+      emitOnboardStep(clientId, 3, 'ok', `WP-CLI ready (${wpCheck.stdout.trim()})`);
+    }
+
+    const wp = (args: string) =>
+      ssh.execCommand(`${wpCliCmd} ${args} --path=${wpPath} --allow-root 2>&1`);
+
+    // ── Step 4: Detect admin user ────────────────────────────
+    emitOnboardStep(clientId, 4, 'run', 'Finding admin user…');
+
+    const userListCmd = await wp(
+      `user list --role=administrator --field=user_login --format=csv`,
+    );
+    // Output may include header "user_login" then list of admins
+    const adminLines = userListCmd.stdout
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && l !== 'user_login' && !l.startsWith('Error') && !l.startsWith('PHP'));
+    const wpUser = adminLines[0];
+    if (!wpUser) {
+      emitOnboardStep(clientId, 4, 'fail', 'No admin user found',
+        userListCmd.stdout.slice(0, 200));
+      ssh.dispose();
+      return { ok: false, error: 'Could not detect WordPress administrator.' };
+    }
+    emitOnboardStep(clientId, 4, 'ok', `Admin user: ${wpUser}`);
+
+    // ── Step 5: Create application password ──────────────────
+    emitOnboardStep(clientId, 5, 'run', 'Generating application password…');
+
+    // Use a unique app name so re-onboarding doesn't collide
+    const appName = `TalkToWP-${Date.now()}`;
+    const apCmd = await wp(
+      `user application-password create "${wpUser}" "${appName}" --porcelain`,
+    );
+    const wpAppPassword = apCmd.stdout.trim().split('\n').pop()?.trim() || '';
+    if (!wpAppPassword || wpAppPassword.includes('Error') || wpAppPassword.length < 10) {
+      emitOnboardStep(clientId, 5, 'fail', 'Could not generate app password',
+        apCmd.stdout.slice(0, 200));
+      ssh.dispose();
+      return { ok: false, error: 'Failed to create WP application password.' };
+    }
+    emitOnboardStep(clientId, 5, 'ok', 'Application password created');
+
+    // ── Step 6: Extract DB credentials ───────────────────────
+    emitOnboardStep(clientId, 6, 'run', 'Reading wp-config.php…');
+
+    const dbGrep = await ssh.execCommand(
+      `grep -E "define.*DB_(NAME|USER|PASSWORD|HOST)" "${wpConfigPath}" 2>/dev/null`,
+    );
+    const extractDb = (key: string): string => {
+      const m = dbGrep.stdout.match(new RegExp(`DB_${key}['"\\s,]+['"](.*?)['"]`));
+      return m?.[1] || '';
+    };
+    const dbName = extractDb('NAME');
+    const dbUser = extractDb('USER');
+    const dbPassword = extractDb('PASSWORD');
+    const dbHost = extractDb('HOST') || 'localhost';
+    emitOnboardStep(clientId, 6, 'ok',
+      dbName ? `Database: ${dbName}` : 'wp-config.php read (DB creds skipped)');
+
+    ssh.dispose();
+
+    // ── Step 7: Save site ────────────────────────────────────
+    emitOnboardStep(clientId, 7, 'run', 'Saving site…');
+
+    const cfg: SiteSetup = {
+      id:             siteId,
+      wpUrl:          (body.url || '').replace(/\/$/, ''),
+      wpUser,
+      wpAppPassword,
+      sshHost:        body.sshHost!,
+      sshPort:        body.sshPort || 22,
+      sshUser:        body.sshUser!,
+      sshPassword:    body.sshPassword || '',
+      sshKeyPath:     resolvedKeyPath,
+      sshKeyPassphrase: body.sshKeyPassphrase || '',
+      wpPath,
+      dbHost, dbName, dbUser, dbPassword,
+      dbExtracted:    !!dbName,
+      siteName:       body.label || domain,
+      domain,
+      setupComplete:  true,
+    };
+    saveSiteById(siteId, cfg);
+    emitOnboardStep(clientId, 7, 'ok', 'Site ready');
+
+    bus.log('success',
+      `Site onboarded: ${domain} (WP ${wpVersion}, admin: ${wpUser}) — id: ${siteId}`,
+      'orchestrator');
+
+    return {
+      ok: true,
+      siteId,
+      wpUser,
+      wpAppPassword,  // FIX: return this so frontend can save it to localStorage
+      wpVersion,
+      wpPath,
+    };
+  } catch (err) {
+    try { ssh.dispose(); } catch { /* ignore */ }
+    emitOnboardStep(clientId, 0, 'fail', 'Onboarding failed', String(err));
+    bus.log('error', `Onboarding error: ${err}`, 'orchestrator');
+    return { ok: false, error: String(err) };
+  }
+}
+
+app.post('/api/sites/onboard', async (req, res) => {
+  const body = req.body as OnboardBody;
+  if (!body.url || !body.sshHost || !body.sshUser) {
+    res.status(400).json({ ok: false, error: 'url, sshHost, sshUser are required' });
+    return;
+  }
+  if (!body.sshPassword && !body.sshKey) {
+    res.status(400).json({ ok: false, error: 'Either sshPassword or sshKey is required' });
+    return;
+  }
+
+  const result = await runOnboardingFlow(body);
+  if (result.ok) {
+    res.json(result);
+  } else {
+    res.status(500).json(result);
+  }
 });
 app.post('/api/tasks', async (req, res) => {
   const { description } = req.body as { description?: string };

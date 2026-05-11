@@ -8,6 +8,8 @@ export interface SiteConfig {
   sshPort: number;
   sshUser: string;
   sshKeyPath: string;
+  sshPassword?: string;     // optional — if set, used in preference to sshKeyPath
+  sshKeyPassphrase?: string; // optional — required if private key is encrypted
   wpPath: string;
   stagingUrl?: string;
   stagingSshHost?: string;
